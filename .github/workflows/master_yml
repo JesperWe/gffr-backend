@@ -19,7 +19,7 @@ jobs:
       - name: Deploy to VM
         uses: appleboy/ssh-action@master
         with:
-          username: admin
+          username: jmx
           host: localhost
           key_path: ./cf_rsa
           timeout: 15m

@@ -6,12 +6,14 @@ const { pgPool, pgClient, pgFallbackClient, doMigrations } = require( "./pool" )
 const { postgraphile } = require( "postgraphile" )
 const ConnectionFilterPlugin = require( "postgraphile-plugin-connection-filter" )
 const fs = require( 'fs' ).promises
+const cors = require( 'cors' )
 
 const app = express()
 
 app.use( morgan( 'tiny' ) )
 app.use( bodyParser.json( { limit: '5mb' } ) )
 app.use( bodyParser.urlencoded( { extended: true } ) )
+app.use( cors() )
 
 const graphileSettings = {
 	watchPg: false,
@@ -64,16 +66,16 @@ const port = process.env.PORT || 3100
 const startupSequence = async() => {
 	try {
 		await pgClient.connect()
-		const dbOkResult = await pgClient.query( 'SELECT * FROM public.property LIMIT 1' )
+		const dbOkResult = await pgClient.query( 'SELECT * FROM public.spatial_ref_sys LIMIT 1' )
 		await pgClient.end()
-		if( dbOkResult.fields.length > 5 ) console.log( '> DB access check OK' ) // ...arbitrary number: We have some columns.
+		if( dbOkResult.fields.length > 3 ) console.log( '> DB access check OK' ) // ...arbitrary number: We have some columns.
 
 		if( process.env.ENABLE_POSTGRES_MIGRATIONS ) {
 			await doMigrations()
-			app.use( postgraphile( pgPool, "public", graphileSettings ) )
+			app.use( postgraphile( pgPool, "bc", graphileSettings ) )
 			console.log( '> Postgraphile started after migrations' )
 		} else {
-			app.use( postgraphile( pgPool, "public", graphileSettings ) )
+			app.use( postgraphile( pgPool, "bc", graphileSettings ) )
 			console.log( '> Postgraphile started' )
 		}
 	} catch( error ) {
@@ -81,7 +83,7 @@ const startupSequence = async() => {
 		if( error.code === '3D000' ) { // Database does not exist. But we know connection works.
 			pgClient.end()
 
-			const script = ( await fs.readFile( './schema/cfportal_schema.sql' ) ).toString()
+			const script = ( await fs.readFile( './schema/datamodel.sql' ) ).toString()
 
 			await pgFallbackClient.connect()
 			console.log( 'Creating DB:', script.split( ';' ).length, 'lines.' )
