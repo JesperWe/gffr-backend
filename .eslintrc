@@ -1,0 +1,14 @@
+{
+  "extends": ["node"],
+  "rules": {
+    "indent": ["error", "tab", { "SwitchCase": 1 }],
+    "semi": "off",
+    "babel/semi": ["off"],
+    "no-console": "off",
+    "space-in-parens": [2, "always"],
+    "array-bracket-spacing": [2, "always"],
+    "object-curly-spacing": [2, "always"],
+    "computed-property-spacing": [2, "always"],
+    "import/no-commonjs": "off"
+  }
+}

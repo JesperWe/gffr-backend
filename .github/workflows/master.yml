@@ -1,0 +1,32 @@
+name: CD/CI for PPI VM
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy-stage:
+    name: Deploy to VM
+    runs-on: [self-hosted]
+
+    steps:
+      - uses: actions/checkout@master
+      - name: Install SSH key
+        run: echo $SSH_KEY | base64 --decode  > ./cf_rsa
+        env:
+          SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+      - name: Deploy to VM
+        uses: appleboy/ssh-action@master
+        with:
+          username: admin
+          host: localhost
+          key_path: ./cf_rsa
+          timeout: 15m
+          command_timeout: 15m
+          script: |
+            cd gffr-backend
+            git reset --hard
+            git pull
+            yarn install
+            pm2 restart 0 --update-env
