@@ -4,7 +4,9 @@ const bodyParser = require( 'body-parser' )
 const morgan = require( 'morgan' )
 const { pgPool, pgClient, pgFallbackClient, doMigrations } = require( "./pool" )
 const { postgraphile } = require( "postgraphile" )
+const PgSimplifyInflectorPlugin = require( "@graphile-contrib/pg-simplify-inflector" )
 const ConnectionFilterPlugin = require( "postgraphile-plugin-connection-filter" )
+const postGIS = require( '@graphile/postgis' )
 const fs = require( 'fs' ).promises
 const cors = require( 'cors' )
 
@@ -16,7 +18,8 @@ app.use( bodyParser.urlencoded( { extended: true } ) )
 app.use( cors() )
 
 const graphileSettings = {
-	watchPg: false,
+	watchPg: true,
+	appendPlugins: [ PgSimplifyInflectorPlugin, ConnectionFilterPlugin, postGIS.default ],
 	graphiql: process.env.ENABLE_GRAPHIQL !== undefined,
 	enhanceGraphiql: process.env.ENABLE_GRAPHIQL !== undefined,
 	enableCors: true,
@@ -30,7 +33,6 @@ const graphileSettings = {
 	),
 	enableQueryBatching: true,
 	allowExplain: () => process.env.ENABLE_GRAPHILE_DEBUG,
-	appendPlugins: [ ConnectionFilterPlugin ],
 	graphileBuildOptions: {
 		connectionFilterAllowedOperators: [
 			"isNull",
