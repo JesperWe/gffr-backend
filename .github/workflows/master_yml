@@ -21,6 +21,8 @@ jobs:
       - name: Build
         run: |
             pwd
-            ls
+            id
+            cd /home/jmx/gffr-backend
+            git pull
             yarn install
-            yarn build
+            pm2 restart gffr-backend
