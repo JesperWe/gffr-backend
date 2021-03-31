@@ -68,7 +68,7 @@ const port = process.env.PORT || 3100
 const startupSequence = async() => {
 	try {
 		await pgClient.connect()
-		const dbOkResult = await pgClient.query( 'SELECT * FROM public.spatial_ref_sys LIMIT 1' )
+		const dbOkResult = await pgClient.query( 'SELECT * FROM public.languages LIMIT 1' )
 		await pgClient.end()
 		if( dbOkResult.fields.length > 3 ) console.log( '> DB access check OK' ) // ...arbitrary number: We have some columns.
 
