@@ -74,10 +74,10 @@ const startupSequence = async() => {
 
 		if( process.env.ENABLE_POSTGRES_MIGRATIONS ) {
 			await doMigrations()
-			app.use( postgraphile( pgPool, "bc", graphileSettings ) )
+			app.use( postgraphile( pgPool, ["public", "bc"], graphileSettings ) )
 			console.log( '> Postgraphile started after migrations' )
 		} else {
-			app.use( postgraphile( pgPool, "bc", graphileSettings ) )
+			app.use( postgraphile( pgPool, ["public", "bc"], graphileSettings ) )
 			console.log( '> Postgraphile started' )
 		}
 	} catch( error ) {
