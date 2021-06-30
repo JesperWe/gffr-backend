@@ -18,7 +18,7 @@ app.use( bodyParser.urlencoded( { extended: true } ) )
 app.use( cors() )
 
 const graphileSettings = {
-	watchPg: true,
+	watchPg: false,
 	appendPlugins: [ PgSimplifyInflectorPlugin, ConnectionFilterPlugin, postGIS.default ],
 	graphiql: process.env.ENABLE_GRAPHIQL !== undefined,
 	enhanceGraphiql: process.env.ENABLE_GRAPHIQL !== undefined,
