@@ -35,7 +35,7 @@ const doMigrations = async() => {
 	} )
 	try {
 		await migrateClient.connect()
-		await createDb( 'cfportal', { client: migrateClient } )
+		await createDb( '', { client: migrateClient } )
 		await migrate( { client: migrateClient }, "schema/migrations" )
 	} finally {
 		await migrateClient.end()

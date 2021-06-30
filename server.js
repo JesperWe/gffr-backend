@@ -2,7 +2,7 @@ require( "dotenv" ).config()
 const express = require( 'express' )
 const bodyParser = require( 'body-parser' )
 const morgan = require( 'morgan' )
-const { pgPool, pgClient, pgFallbackClient, doMigrations } = require( "./pool" )
+const { pgPool, pgClient, doMigrations } = require( "./pool" )
 const { postgraphile } = require( "postgraphile" )
 const PgSimplifyInflectorPlugin = require( "@graphile-contrib/pg-simplify-inflector" )
 const ConnectionFilterPlugin = require( "postgraphile-plugin-connection-filter" )
@@ -72,7 +72,7 @@ const startupSequence = async() => {
 		await pgClient.end()
 		if( dbOkResult.fields.length > 3 ) console.log( '> DB access check OK' ) // ...arbitrary number: We have some columns.
 
-		if( process.env.ENABLE_POSTGRES_MIGRATIONS ) {
+		if( process.env.ENABLE_POSTGRES_MIGRATIONS === '1' ) {
 			await doMigrations()
 			app.use( postgraphile( pgPool, ["public", "bc"], graphileSettings ) )
 			console.log( '> Postgraphile started after migrations' )
