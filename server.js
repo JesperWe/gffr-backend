@@ -81,18 +81,8 @@ const startupSequence = async() => {
 			console.log( '> Postgraphile started' )
 		}
 	} catch( error ) {
-		console.log( 'Database check fail:', error.message )
-		if( error.code === '3D000' ) { // Database does not exist. But we know connection works.
-			pgClient.end()
-
-			const script = ( await fs.readFile( './schema/datamodel.sql' ) ).toString()
-
-			await pgFallbackClient.connect()
-			console.log( 'Creating DB:', script.split( ';' ).length, 'lines.' )
-			await pgFallbackClient.query( script )
-			console.log( 'Done.' )
-			pgFallbackClient.end()
-		}
+		console.log( 'Database fail:', error.code, error.message )
+		pgClient.end()
 	}
 }
 
