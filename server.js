@@ -7,7 +7,6 @@ const { postgraphile } = require( "postgraphile" )
 const PgSimplifyInflectorPlugin = require( "@graphile-contrib/pg-simplify-inflector" )
 const ConnectionFilterPlugin = require( "postgraphile-plugin-connection-filter" )
 const postGIS = require( '@graphile/postgis' )
-const fs = require( 'fs' ).promises
 const cors = require( 'cors' )
 
 const app = express()

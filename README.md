@@ -19,6 +19,12 @@ git config --global credential.helper cache
 git config --global credential.helper "cache --timeout=3600000"
 
 https://github.com/JesperWe/grff-backend.git
+...
+
+# Frontend start:
+pm2 start npm --name "my_app_name" -- start
+pm2 startup
+pm2 save
 ```
 
 ## nginx config
@@ -44,7 +50,7 @@ server {
     server_name api.fossilfuelregistry.org; # managed by Certbot
         
     location / {
-        proxy_pass     https://127.0.0.1:3000;
+        proxy_pass     http://127.0.0.1:3000;
     }   
     
     listen [::]:443 ssl ipv6only=on; # managed by Certbot

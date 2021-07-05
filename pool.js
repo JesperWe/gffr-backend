@@ -27,16 +27,19 @@ const pgFallbackClient = new Client( {
 } )
 
 const doMigrations = async() => {
-	console.log( '> Running migrations.' )
 	const migrateClient = new Client( {
-		connectionString: process.env.POSTGRES_CONNECTION_URL,
+		connectionString: process.env.POSTGRES_ADMIN_URL,
 		application_name: 'REST-API',
 		ssl
 	} )
+	console.log( '> Running migrations.' )
+	//console.log( migrateClient )
 	try {
 		await migrateClient.connect()
-		await createDb( '', { client: migrateClient } )
+		await createDb( 'dev-grff', { client: migrateClient } )
 		await migrate( { client: migrateClient }, "schema/migrations" )
+	} catch( e ) {
+		console.log( e )
 	} finally {
 		await migrateClient.end()
 	}
