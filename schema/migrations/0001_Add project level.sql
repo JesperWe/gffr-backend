@@ -74,7 +74,7 @@ AS $$
 				(iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = '') OR
 				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = p.project_id) OR
 				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = ''))
-	)
+	) OR s.source_id = 100
 $$;
 GRANT EXECUTE ON FUNCTION public.get_projection_sources TO grff;
 
