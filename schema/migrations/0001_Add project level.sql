@@ -1,13 +1,17 @@
-ALTER TABLE public.country_production ADD COLUMN IF NOT EXISTS project_id text NULL;
-ALTER TABLE public.country_production ADD COLUMN IF NOT EXISTS iso3166_2 text NULL;
+ALTER TABLE public.country_production ADD COLUMN IF NOT EXISTS project_id text NOT NULL DEFAULT '';
+ALTER TABLE public.country_production ADD COLUMN IF NOT EXISTS iso3166_2 text NOT NULL DEFAULT '';
 
-DROP FUNCTION get_producing_iso3166();
+ALTER TABLE public.country_reserves ADD COLUMN IF NOT EXISTS project_id text NOT NULL DEFAULT '';
+ALTER TABLE public.country_reserves ADD COLUMN IF NOT EXISTS iso3166_2 text NOT NULL DEFAULT '';
+
 CREATE OR REPLACE FUNCTION public.get_producing_iso3166()
     RETURNS TABLE (iso3166 text, iso3166_2 TEXT, en TEXT, fr TEXT, es TEXT, sv text)
     LANGUAGE sql STABLE
 AS $$
-   SELECT DISTINCT prod.iso3166, prod.iso3166_2, c.en, c.fr, c.es, c.sv FROM public.country_production prod
-     JOIN public.countries c ON c.iso3166 = prod.iso3166;
+   SELECT DISTINCT prod.iso3166, prod.iso3166_2, c.en, c.fr, c.es, c.sv FROM
+   	(SELECT DISTINCT iso3166, COALESCE(iso3166_2, '') AS iso3166_2 FROM public.country_production) prod
+     JOIN public.countries c ON c.iso3166 = prod.iso3166 AND c.iso3166_2 = prod.iso3166_2
+     ORDER BY prod.iso3166;
 $$;
 
 GRANT SELECT ON TABLE public.languages TO grff;
@@ -21,11 +25,71 @@ DROP TABLE IF EXISTS public.countries;
 
 CREATE TABLE public.countries (
 	iso3166 varchar NOT NULL,
-	iso3166_2 varchar NULL,
+	iso3166_2 varchar NOT NULL DEFAULT '',
 	en text NOT NULL,
 	es text NULL,
 	fr text NULL,
-	sv text NULL
+	sv text NULL,
+	CONSTRAINT countries_pk PRIMARY KEY (iso3166, iso3166_2)
 );
-ALTER TABLE public.countries ADD CONSTRAINT countries_pk PRIMARY KEY (iso3166);
+
 GRANT SELECT ON TABLE public.countries TO grff;
+
+DROP FUNCTION IF EXISTS get_projects(text, text);
+CREATE OR REPLACE FUNCTION public.get_projects(iso3166_ TEXT, iso3166_2_ text)
+    RETURNS TABLE (project_id TEXT, iso3166_2 TEXT )
+    LANGUAGE sql STABLE
+AS $$
+	SELECT DISTINCT project_id, iso3166_2 FROM public.country_production p WHERE (iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2) OR (iso3166_ = p.iso3166 AND iso3166_2_ = '')
+		ORDER BY project_id;
+$$;
+
+DROP FUNCTION IF EXISTS get_production_sources(text, text, text);
+CREATE OR REPLACE FUNCTION public.get_production_sources(iso3166_ TEXT, iso3166_2_ TEXT = '', project_id_ TEXT = '' )
+    RETURNS SETOF sources
+    LANGUAGE sql STABLE
+AS $$
+	SELECT * FROM public.sources s WHERE s.source_id IN (
+		SELECT DISTINCT source_id FROM public.country_production p
+		WHERE
+				p.projection = FALSE AND
+				((iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = p.project_id) OR
+				(iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = '') OR
+				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = p.project_id) OR
+				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = ''))
+	)
+$$;
+GRANT EXECUTE ON FUNCTION public.get_production_sources TO grff;
+
+DROP FUNCTION IF EXISTS get_projection_sources(text, text, text);
+CREATE OR REPLACE FUNCTION public.get_projection_sources(iso3166_ TEXT, iso3166_2_ TEXT = '', project_id_ TEXT = '' )
+    RETURNS SETOF sources
+    LANGUAGE sql STABLE
+AS $$
+	SELECT * FROM public.sources s WHERE s.source_id IN (
+		SELECT DISTINCT source_id FROM public.country_production p
+		WHERE
+				p.projection = TRUE AND
+				((iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = p.project_id) OR
+				(iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = '') OR
+				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = p.project_id) OR
+				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = ''))
+	)
+$$;
+GRANT EXECUTE ON FUNCTION public.get_projection_sources TO grff;
+
+DROP FUNCTION IF EXISTS get_reserves_sources(text, text, text);
+CREATE OR REPLACE FUNCTION public.get_reserves_sources(iso3166_ TEXT, iso3166_2_ TEXT = '', project_id_ TEXT = '' )
+    RETURNS SETOF sources
+    LANGUAGE sql STABLE
+AS $$
+	SELECT * FROM public.sources s WHERE s.source_id IN (
+		SELECT DISTINCT source_id FROM public.country_reserves p
+		WHERE
+				(iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = p.project_id) OR
+				(iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = '') OR
+				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = p.project_id) OR
+				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = '')
+	)
+$$;
+GRANT EXECUTE ON FUNCTION public.get_reserves_sources TO grff;
