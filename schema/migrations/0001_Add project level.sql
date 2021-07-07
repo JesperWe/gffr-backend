@@ -80,16 +80,20 @@ GRANT EXECUTE ON FUNCTION public.get_projection_sources TO grff;
 
 DROP FUNCTION IF EXISTS get_reserves_sources(text, text, text);
 CREATE OR REPLACE FUNCTION public.get_reserves_sources(iso3166_ TEXT, iso3166_2_ TEXT = '', project_id_ TEXT = '' )
-    RETURNS SETOF sources
+    RETURNS TABLE (source_id integer, name TEXT, name_pretty TEXT, description TEXT, url TEXT, grades TEXT, YEAR integer)
     LANGUAGE sql STABLE
 AS $$
-	SELECT * FROM public.sources s WHERE s.source_id IN (
+SELECT a.source_id, a.name, a.name_pretty, a.description, a.url, b.grades, b.year FROM
+	(	SELECT * FROM public.sources s WHERE s.source_id IN (
 		SELECT DISTINCT source_id FROM public.country_reserves p
 		WHERE
 				(iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = p.project_id) OR
 				(iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = '') OR
 				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = p.project_id) OR
 				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = '')
-	)
+	) ) a
+	JOIN
+		(SELECT string_agg(DISTINCT grade, '/') AS grades, max(YEAR) AS YEAR, source_id FROM public.country_reserves WHERE iso3166='dk' GROUP BY source_id) b
+		ON a.source_id = b.source_id
 $$;
 GRANT EXECUTE ON FUNCTION public.get_reserves_sources TO grff;
