@@ -53,10 +53,7 @@ AS $$
 		SELECT DISTINCT source_id FROM public.country_production p
 		WHERE
 				p.projection = FALSE AND
-				((iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = p.project_id) OR
-				(iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = '') OR
-				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = p.project_id) OR
-				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = ''))
+				(iso3166_ = p.iso3166 AND p.iso3166_2 = iso3166_2_ AND p.project_id = project_id_)
 	)
 $$;
 GRANT EXECUTE ON FUNCTION public.get_production_sources TO grff;
@@ -70,30 +67,25 @@ AS $$
 		SELECT DISTINCT source_id FROM public.country_production p
 		WHERE
 				p.projection = TRUE AND
-				((iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = p.project_id) OR
-				(iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = '') OR
-				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = p.project_id) OR
-				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = ''))
+				(iso3166_ = p.iso3166 AND p.iso3166_2 = iso3166_2_ AND p.project_id = project_id_)
 	) OR s.source_id = 100
 $$;
 GRANT EXECUTE ON FUNCTION public.get_projection_sources TO grff;
 
 DROP FUNCTION IF EXISTS get_reserves_sources(text, text, text);
 CREATE OR REPLACE FUNCTION public.get_reserves_sources(iso3166_ TEXT, iso3166_2_ TEXT = '', project_id_ TEXT = '' )
-    RETURNS TABLE (source_id integer, name TEXT, name_pretty TEXT, description TEXT, url TEXT, grades TEXT, YEAR integer)
+    RETURNS TABLE (source_id integer, name TEXT, name_pretty TEXT, description TEXT, url TEXT, grades TEXT, YEAR integer, quality integer)
     LANGUAGE sql STABLE
 AS $$
-SELECT a.source_id, a.name, a.name_pretty, a.description, a.url, b.grades, b.year FROM
+SELECT a.source_id, a.name, a.name_pretty, a.description, a.url, b.grades, b.YEAR, b.quality FROM
 	(	SELECT * FROM public.sources s WHERE s.source_id IN (
 		SELECT DISTINCT source_id FROM public.country_reserves p
 		WHERE
-				(iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = p.project_id) OR
-				(iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2 AND project_id_ = '') OR
-				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = p.project_id) OR
-				(iso3166_ = p.iso3166 AND iso3166_2_ = '' AND project_id_ = '')
+				(iso3166_ = p.iso3166 AND p.iso3166_2 = iso3166_2_ AND p.project_id = project_id_)
 	) ) a
-	JOIN
-		(SELECT string_agg(DISTINCT grade, '/') AS grades, max(YEAR) AS YEAR, source_id FROM public.country_reserves WHERE iso3166='dk' GROUP BY source_id) b
+	LEFT OUTER JOIN
+		(SELECT string_agg(DISTINCT grade, '/') AS grades, max(YEAR) AS YEAR, max(quality)::integer AS quality, source_id FROM public.country_reserves WHERE iso3166=iso3166_ GROUP BY source_id) b
 		ON a.source_id = b.source_id
+	ORDER BY quality DESC;
 $$;
 GRANT EXECUTE ON FUNCTION public.get_reserves_sources TO grff;
