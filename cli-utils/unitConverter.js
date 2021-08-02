@@ -5,6 +5,7 @@ const DEBUG = false
 const fuelTypes = [ 'gas', 'oil', 'coal' ]
 const graph = {}
 const conversion = {}
+let countries = []
 
 export const initUnitConversionGraph = async( pgClient ) => {
 	const result = await pgClient.query( 'select * from public.conversion_constant' )
@@ -39,6 +40,21 @@ export const initUnitConversionGraph = async( pgClient ) => {
 		} )
 	} )
 	return graph
+}
+
+export const initCountries = async( pgClient ) => {
+	const result = await pgClient.query( 'select iso3166, en from public.countries' )
+	countries = ( result.rows ?? [] ).map( c => ( { iso3166: c.iso3166, en: c.en.toLowerCase() } ) )
+	return countries
+}
+
+export const getISO3166 = name => {
+	const row = countries.find( c => c.en === name.toLowerCase() )
+	if( !row ) {
+		console.log( 'ISO3166 not found for', name )
+		return 'n/a'
+	}
+	return row.iso3166
 }
 
 export const convertVolume = ( volume, fuel, fromUnit, toUnit ) => {

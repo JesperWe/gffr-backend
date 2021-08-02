@@ -2,7 +2,8 @@ import util from 'util'
 import stream from 'stream'
 import csv from 'csv'
 import { pgClient } from "./pool.js"
-import { convertVolume, initUnitConversionGraph } from "./unitConverter.js"
+import fetch from 'node-fetch'
+import { convertVolume, getISO3166, initCountries, initUnitConversionGraph } from "./unitConverter.js"
 
 const { parse, stringify } = csv
 const { Transform } = stream
@@ -28,9 +29,34 @@ const transformData = ( fn, options = {} ) =>
 		objectMode: true,
 		...options,
 
-		transform( chunk, encoding, callback ) {
+		async transform( chunk, encoding, callback ) {
+
 			console.log( '+', chunk[ 'Mine ID' ] )
-			chunk.co2e = convertVolume(chunk['Coal Output (Annual, Mt)'], 'coal', 'Gg', 'kgco2e')
+			chunk.co2e = convertVolume( chunk[ 'Coal Output (Annual, Mt)' ], 'coal', 'Gg', 'kgco2e' )
+			chunk.iso3166 = getISO3166( chunk.Country )
+
+			const link = chunk[ 'GEM Wiki Page (ENG)' ]?.split( '/' )
+			const page = encodeURIComponent( link[ link.length - 1 ] )
+			const apiUrl = `https://www.gem.wiki/w/api.php?action=parse&page=${ page }&prop=wikitext&format=json`
+			try {
+				const api = await fetch( apiUrl )
+				if( api.ok ) {
+					const resp = await api.json()
+					const content = resp?.parse?.wikitext?.[ '*' ]
+
+					const start = content.indexOf( '==Background==' )
+					if( start < 0 ) console.log( 'No Background header in text for', chunk[ 'Mine ID' ] )
+					else {
+						let bg = content.substring( start + 14 )
+						const end = bg.indexOf( '==' )
+						if( end > 0 ) bg = bg.substring( 0, end )
+						bg = bg.trim()
+						chunk.description = bg
+					}
+				}
+			} catch( e ) {
+				console.log( e.message )
+			}
 			callback( null, chunk )
 		}
 	} )
@@ -85,14 +111,13 @@ const dbInsert = async( chunk, cb ) => {
 			/* 19 */ chunk[ 'Mining Method' ],
 			/* 20 */ chunk[ 'Coal Grade' ],
 			/* 21 */ chunk[ 'reserves' ] ?? null,
-			/* 22 */ 17, // source_id
+			/* 22 */ 15, // source_id
 			/* 23 */ chunk[ 'fuel' ] ?? 'coal',
 			/* 24 */ chunk[ 'Coal Type' ]?.toLowerCase() ?? null,
 			/* 25 */ false
 		] )
 	cb( null, chunk )
 }
-
 
 const dbSaver = ( fn, options = {} ) =>
 	new Transform( {
@@ -108,7 +133,8 @@ try {
 	await pgClient.connect()
 	console.log( 'CONNECTED' )
 
-	const graph = await initUnitConversionGraph( pgClient )
+	await initUnitConversionGraph( pgClient )
+	await initCountries( pgClient )
 	//console.log( graph?.coal?.serialize() )
 
 	const rows = await pgClient.query( 'DELETE FROM public.sparse_projects' )
