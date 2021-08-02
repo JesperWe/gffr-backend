@@ -22,12 +22,13 @@ CREATE TABLE public.sparse_projects (
     link_url text NULL,
     production_type text NULL,
     production_method text NULL,
-    production_grade text NULL,
-    reserves float8 NULL,
+    grade text NULL,
     source_id int4 NULL,
     fossil_fuel_type varchar(12) NOT NULL,
     subtype varchar(20) NULL,
-    projection bool NOT NULL DEFAULT false,
+    quality int4 NULL,
+    reserves bool NULL DEFAULT false,
+    projection bool NULL DEFAULT false,
     CONSTRAINT sparse_projects_pk PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS sparse_projects_region ON public.sparse_projects (iso3166,project_id,iso3166_2);

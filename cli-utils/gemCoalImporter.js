@@ -87,7 +87,7 @@ const dbInsert = async( chunk, cb ) => {
 		`INSERT INTO public.sparse_projects
          (iso3166, iso3166_2, project_id, source_project_name, source_project_id, region, location_name, operator_name,
           oc_operator_id, geo_position, "year", volume, unit, production_co2e, description, link_url, production_type,
-          production_method, production_grade, reserves, source_id, fossil_fuel_type, subtype, projection)
+          production_method, grade, reserves, source_id, fossil_fuel_type, subtype, projection)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ST_SetSRID(ST_POINT($10, $11), 4326), $12, $13, $14, $15, $16, $17,
                  $18, $19, $20, $21, $22, $23, $24, $25)`, [
 			/* 01 */ chunk[ 'iso3166' ],
@@ -110,7 +110,7 @@ const dbInsert = async( chunk, cb ) => {
 			/* 18 */ chunk[ 'Coal Type' ],
 			/* 19 */ chunk[ 'Mining Method' ],
 			/* 20 */ chunk[ 'Coal Grade' ],
-			/* 21 */ chunk[ 'reserves' ] ?? null,
+			/* 21 */ false,
 			/* 22 */ 15, // source_id
 			/* 23 */ chunk[ 'fuel' ] ?? 'coal',
 			/* 24 */ chunk[ 'Coal Type' ]?.toLowerCase() ?? null,
@@ -137,7 +137,7 @@ try {
 	await initCountries( pgClient )
 	//console.log( graph?.coal?.serialize() )
 
-	const rows = await pgClient.query( 'DELETE FROM public.sparse_projects' )
+	const rows = await pgClient.query( 'DELETE FROM public.sparse_projects WHERE source_id = 15 AND reserves=false' )
 
 	await pipeline(
 		process.stdin,
