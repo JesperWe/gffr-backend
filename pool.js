@@ -3,7 +3,7 @@ const { createDb, migrate } = require( 'postgres-migrations' )
 
 let ssl = false
 
-if( process.env.POSTGRES_CONNECTION_URL.indexOf( 'localhost' ) < 0 )
+if( process.env.POSTGRES_CONNECTION_URL?.indexOf( 'localhost' ) < 0 )
 	ssl = { rejectUnauthorized: false }
 
 const pgPool = new Pool( {
