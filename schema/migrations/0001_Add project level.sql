@@ -36,12 +36,18 @@ $$;
 
 DROP FUNCTION IF EXISTS get_projects(text, text);
 CREATE OR REPLACE FUNCTION public.get_projects(iso3166_ TEXT, iso3166_2_ text)
-    RETURNS TABLE (project_id TEXT, iso3166_2 TEXT, first_year integer, last_year integer )
+    RETURNS TABLE (project_id TEXT, iso3166_2 TEXT, first_year integer, last_year integer, data_type text )
     LANGUAGE sql STABLE
 AS $$
-	SELECT DISTINCT project_id, iso3166_2, min(year) AS first_year, max(year) AS last_year FROM public.country_production p WHERE (iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2) OR (iso3166_ = p.iso3166 AND iso3166_2_ = '')
-		GROUP BY project_id, iso3166_2 ORDER BY project_id;
+    (SELECT DISTINCT project_id, iso3166_2, min(year) AS first_year, max(year) AS last_year, 'dense' AS data_type FROM public.country_production p WHERE
+            p.project_id <> '' AND ((iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2) OR (iso3166_ = p.iso3166 AND iso3166_2_ = ''))
+     GROUP BY project_id, iso3166_2 ORDER BY project_id)
+    UNION
+    (SELECT DISTINCT project_id, iso3166_2, min(year) AS first_year, max(year) AS last_year, 'sparse' AS data_type FROM public.sparse_projects sp WHERE
+        (iso3166_ = sp.iso3166 AND iso3166_2_ = sp.iso3166_2) OR (iso3166_ = sp.iso3166 AND iso3166_2_ = '')
+     GROUP BY project_id, iso3166_2 ORDER BY project_id);
 $$;
+GRANT EXECUTE ON FUNCTION public.get_projects TO grff;
 
 DROP FUNCTION IF EXISTS get_production_sources(text, text, text);
 CREATE OR REPLACE FUNCTION public.get_production_sources(iso3166_ TEXT, iso3166_2_ TEXT = '', project_id_ TEXT = '' )
