@@ -3,7 +3,7 @@ import stream from 'stream'
 import csv from 'csv'
 import { pgClient } from "./pool.js"
 import fetch from 'node-fetch'
-import { convertVolume, getISO3166, initCountries, initUnitConversionGraph } from "./unitConverter.js"
+import { convertVolume, initCountries, initUnitConversionGraph } from "./unitConverter.js"
 
 const { parse, stringify } = csv
 const { Transform } = stream
@@ -93,35 +93,57 @@ const dbInsert = async( chunk, cb ) => {
 		/* 06 */ chunk[ 'Province' ], // region
 		/* 07 */ chunk[ 'Location' ], // location_name
 		/* 08 */ chunk[ 'Operator' ], // operator_name
-		/* 09 */ chunk[ 'OC_Operator_ID' ]?.substring(26), //oc_operator_id
+		/* 09 */ chunk[ 'OC_Operator_ID' ]?.substring( 26 ), //oc_operator_id
 		/* 10 */ chunk[ 'Longitude' ], // geo_position
 		/* 11 */ chunk[ 'Latitude' ], // geo_position
-		/* 12 */ chunk[ 'year' ] ?? 2021, // year
-		/* 13 */ parseFloat( chunk[ 'Production_e6tons' ] ), // volume
-		/* 14 */ chunk[ 'unit' ] ?? 'e6ton', // unit
-		/* 15 */ chunk[ 'co2e' ] ?? 0, // production_co2e
-		/* 16 */ chunk[ 'description' ] ?? '', // description
-		/* 17 */ chunk[ 'GEM_Wiki_Page_ENG' ], // link_url
-		/* 18 */ chunk[ 'Mine Type' ], // production_type
-		/* 19 */ chunk[ 'Mining Method' ], // production_method
-		/* 20 */ chunk[ 'Grade' ], // grade
-		/* 21 */ chunk[ 'Reserves_2p' ] || null, // reserves
-		/* 22 */ 15, // source_id
-		/* 23 */ chunk[ 'fuel' ] ?? 'coal', // fossil_fuel_type
-		/* 24 */ chunk[ 'Type' ]?.toLowerCase() ?? null, // subtype
-		/* 25 */ false, // projection
-		/* 26 */ chunk[ 'CH4 m3 / ton' ], // methane_m3_ton
-		/* 27 */ '2p', // reserves_grade
-		/* 28 */ 'e6ton' // reserves_unit
+		/* 12 */ chunk[ 'co2e' ] ?? 0, // production_co2e
+		/* 13 */ chunk[ 'description' ] ?? '', // description
+		/* 14 */ chunk[ 'GEM_Wiki_Page_ENG' ], // link_url
+		/* 15 */ chunk[ 'Mine Type' ], // production_type
+		/* 16 */ chunk[ 'Mining Method' ], // production_method
+		/* 17 */ chunk[ 'CH4 m3 / ton' ], // methane_m3_ton
 	]
-	console.log(params)
-	await pgClient.query(
+	//console.log( params )
+	const inserted = await pgClient.query(
 		`INSERT INTO public.sparse_projects
          (iso3166, iso3166_2, project_id, source_project_name, source_project_id, region, location_name, operator_name,
-          oc_operator_id, geo_position, "year", volume, unit, production_co2e, description, link_url, production_type,
-          production_method, grade, reserves, source_id, fossil_fuel_type, subtype, projection, methane_m3_ton, reserves_grade, reserves_unit)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ST_SetSRID(ST_POINT($10, $11), 4326), $12, $13, $14, $15, $16, $17,
-                 $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)`, params )
+          oc_operator_id, geo_position, production_co2e, description, link_url, production_type,
+          production_method, methane_m3_ton)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, ST_SetSRID(ST_POINT($10, $11), 4326), $12, $13, $14, $15, $16,
+                 $17) RETURNING *`, params )
+
+	console.log( '_______________', inserted.rows?.[ 0 ]?.id )
+	const last_id = inserted.rows?.[ 0 ]?.id
+
+	const dparams = [
+		/* 01 */ last_id, // year
+		/* 02 */ chunk[ 'year' ] ?? 2021, // year
+		/* 03 */ parseFloat( chunk[ 'Production_e6tons' ] ), // volume
+		/* 04 */ chunk[ 'unit' ] ?? 'e6ton', // unit
+		/* 05 */ chunk[ 'Grade' ], // grade
+		/* 06 */ 15, // source_id
+		/* 07 */ 'coal', // fossil_fuel_type
+		/* 08 */ chunk[ 'Type' ]?.toLowerCase() ?? null, // subtype
+		/* 09 */ 'production', // data_type
+	]
+	await pgClient.query(
+		`INSERT INTO public.sparse_data_point
+         (sparse_project_id, year, volume, unit, grade, source_id, fossil_fuel_type, subtype, data_type)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, dparams )
+
+	const res = parseFloat( chunk[ 'Reserves_2p' ] )
+	if( res > 0 ) {
+		dparams[ 2 ] = res
+		dparams[ 3 ] = 'e6ton'
+		dparams[ 4 ] = '2p'
+		dparams[ 8 ] = 'reserve'
+
+		await pgClient.query(
+			`INSERT INTO public.sparse_data_point
+             (sparse_project_id, year, volume, unit, grade, source_id, fossil_fuel_type, subtype, data_type)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, dparams )
+	}
+
 	cb( null, chunk )
 }
 
@@ -143,7 +165,8 @@ try {
 	await initCountries( pgClient )
 	//console.log( graph?.coal?.serialize() )
 
-	const rows = await pgClient.query( 'DELETE FROM public.sparse_projects WHERE source_id = 15' )
+	const rows1 = await pgClient.query( 'TRUNCATE public.sparse_data_point RESTART IDENTITY CASCADE' )
+	//const rows2 = await pgClient.query( 'TRUNCATE public.sparse_projects RESTART IDENTITY' )
 
 	await pipeline(
 		process.stdin,
