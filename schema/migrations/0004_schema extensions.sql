@@ -7,3 +7,7 @@ ALTER TABLE public.sparse_projects ALTER COLUMN geo_position TYPE geometry USING
 ALTER TABLE public.sources ADD COLUMN IF NOT EXISTS int8 integer NULL;
 ALTER TABLE public.sources ADD COLUMN IF NOT EXISTS int8 integer NULL;
 ALTER TABLE public.sources ADD COLUMN IF NOT EXISTS latest_curation_at timestamp NULL;
+
+UPDATE public.sparse_projects SET production_co2e = 0 WHERE production_co2e IS NULL;
+ALTER TABLE public.sparse_projects ALTER COLUMN production_co2e SET NOT NULL;
+ALTER TABLE public.sparse_projects ALTER COLUMN production_co2e SET DEFAULT 0;
