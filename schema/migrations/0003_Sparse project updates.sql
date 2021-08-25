@@ -44,7 +44,7 @@ CREATE OR REPLACE FUNCTION public.get_projects(iso3166_ TEXT, iso3166_2_ text)
     LANGUAGE sql STABLE
 AS $$
 (SELECT DISTINCT project_id, iso3166_2, min(year) AS first_year, max(year) AS last_year, 'dense' AS data_type FROM public.country_production p WHERE
-        p.project_id <> '' AND ((iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2) OR (iso3166_ = p.iso3166 AND iso3166_2_ = ''))
+        p.project_id <> '' AND projection = FALSE AND ((iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2) OR (iso3166_ = p.iso3166 AND iso3166_2_ = ''))
  GROUP BY project_id, iso3166_2 ORDER BY project_id)
 UNION
 (

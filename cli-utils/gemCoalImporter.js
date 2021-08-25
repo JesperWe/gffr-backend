@@ -68,6 +68,7 @@ const columns = {
 	'Operator': '',
 	'OC_Operator_ID': '',
 	'Production_e6tons': 'volume',
+	'co2e': 'co2e',
 	'Mine Type': 'project_type',
 	'Mining Method': 'project_method',
 	'Type': 'production_type',
@@ -165,7 +166,7 @@ try {
 	await initCountries( pgClient )
 	//console.log( graph?.coal?.serialize() )
 
-	const rows1 = await pgClient.query( 'TRUNCATE public.sparse_data_point RESTART IDENTITY CASCADE' )
+	//const rows1 = await pgClient.query( 'TRUNCATE public.sparse_data_point RESTART IDENTITY CASCADE' )
 	//const rows2 = await pgClient.query( 'TRUNCATE public.sparse_projects RESTART IDENTITY' )
 
 	await pipeline(

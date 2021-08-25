@@ -13,6 +13,7 @@ export const initUnitConversionGraph = async( pgClient ) => {
 	constants.forEach( c => {
 		if( !conversion[ c.from_unit ] ) conversion[ c.from_unit ] = {}
 		conversion[ c.from_unit ][ c.to_unit ] = {
+			id: c.id,
 			factor: c.factor,
 			low: c.low,
 			high: c.high,
@@ -25,7 +26,7 @@ export const initUnitConversionGraph = async( pgClient ) => {
 
 		graph[ t ] = Graph()
 		const thisFuelConversions = constants.filter( c => c.fossil_fuel_type === t || c.fossil_fuel_type === null )
-		//console.log( t, constants.length, thisFuelConversions.length )
+		DEBUG && console.log( t, constants.length, thisFuelConversions.length )
 
 		// Add all unique units as nodes
 		const allUnits = {}
@@ -36,6 +37,7 @@ export const initUnitConversionGraph = async( pgClient ) => {
 		Object.keys( allUnits ).forEach( u => graph[ t ].addNode( u ) )
 
 		thisFuelConversions.forEach( conv => {
+			DEBUG && console.log( t, conv.from_unit, '-->', conv.to_unit )
 			graph[ t ].addEdge( conv.from_unit, conv.to_unit )
 		} )
 	} )
@@ -70,14 +72,14 @@ export const convertVolume = ( volume, fuel, fromUnit, toUnit ) => {
 
 			if( !conv ) throw new Error(
 				`Conversion data issue: From ${ from } to ${ to } for ${ fuel } is ${ JSON.stringify( conv ) }` )
-
+			//console.log( { from, to, conv, factor } )
 			factor *= conv.factor
 		}
 
-		//console.log( fuel, factor, path )
+		DEBUG && console.log( fuel, factor, path )
 		return factor * volume
 	} catch( e ) {
-		console.log( e.message + ': ' + fromUnit, toUnit )
+		console.log( e.message + ': ' + fromUnit, toUnit, fuel, graph[ fuel ].serialize() )
 		return volume
 	}
 }

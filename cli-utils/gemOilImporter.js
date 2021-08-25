@@ -67,8 +67,8 @@ const dbInsert = async( chunk, cb ) => {
 	}
 
 	let dataType = 'production'
-	if( chunk.reserves.toLowerCase() === 'TRUE' ) dataType = 'reserve'
-	if( chunk.projection.toLowerCase() === 'TRUE' ) dataType = 'projection'
+	if( chunk.reserves === 'TRUE' ) dataType = 'reserve'
+	if( chunk.projection === 'TRUE' ) dataType = 'projection'
 
 	const dparams = [
 		/* 01 */ last_id,
