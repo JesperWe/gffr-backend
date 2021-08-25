@@ -33,6 +33,7 @@ const graphileSettings = {
 	enableQueryBatching: true,
 	allowExplain: () => process.env.ENABLE_GRAPHILE_DEBUG,
 	graphileBuildOptions: {
+		graphileBuildOptions: { orderByNullsLast: true },
 		connectionFilterAllowedOperators: [
 			"isNull",
 			"equalTo",
