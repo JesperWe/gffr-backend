@@ -89,20 +89,6 @@ ALTER TABLE public.country_data_point ADD CONSTRAINT country_data_point_fk FOREI
 ALTER TABLE public.project RENAME CONSTRAINT sparse_projects_pk TO projects_pk;
 ALTER TABLE public.project ADD CONSTRAINT project_fk FOREIGN KEY (iso3166,iso3166_2) REFERENCES public.country(iso3166,iso3166_2) ON DELETE CASCADE;
 
--- ------------------------------------------------
-
-ALTER TABLE public.country_data_point RENAME CONSTRAINT country_production_pk TO country_data_point_pk;
-ALTER TABLE public.country_data_point DROP CONSTRAINT country_production_fk;
-ALTER INDEX country_production_iso3166_idx RENAME TO country_data_point_iso3166_idx;
-
-UPDATE public.country_data_point SET iso3166_2 = '' WHERE iso3166_2 IS NULL;
-ALTER TABLE public.country_data_point ALTER COLUMN iso3166_2 SET NOT NULL;
-ALTER TABLE public.country_data_point ALTER COLUMN iso3166_2 SET DEFAULT '';
-
-ALTER TABLE public.country_data_point ADD CONSTRAINT country_data_point_fk FOREIGN KEY (iso3166,iso3166_2) REFERENCES public.country(iso3166,iso3166_2) ON DELETE CASCADE;
-
-ALTER TABLE public.project RENAME CONSTRAINT sparse_projects_pk TO projects_pk;
-ALTER TABLE public.project ADD CONSTRAINT project_fk FOREIGN KEY (iso3166,iso3166_2) REFERENCES public.country(iso3166,iso3166_2) ON DELETE CASCADE;
 ALTER TABLE public.project RENAME COLUMN project_id TO project_identifier;
 
 -- ---------------------------------------------------
