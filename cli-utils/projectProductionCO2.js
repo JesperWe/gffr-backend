@@ -66,7 +66,7 @@ try {
 	}
 
 	if( currentProject ) { // Last one
-		const res = await pgClient.query( 'update public.project set production_co2 = $1 where id=$2', [ currentEmissions, currentProject ] )
+		const res = await pgClient.query( 'update public.project set production_co2e = $1 where id=$2', [ currentEmissions, currentProject ] )
 		DEBUG && console.log( 'SAVED', { currentProject, currentEmissions } )
 	}
 
