@@ -125,13 +125,15 @@ CREATE OR REPLACE FUNCTION public.get_country_sources(iso3166_ text, iso3166_2_ 
                      records int8,
                      data_points int8,
                      latest_curation_at timestamp,
-                     data_type data_point_type
+                     data_type data_point_type,
+                     quality integer,
+                     grade text
                  )
     LANGUAGE sql
     STABLE
 AS $function$
-SELECT DISTINCT s.*, cdp.data_type FROM sources s, country_data_point cdp
-WHERE s.source_id = cdp.source_id AND iso3166_ = cdp.iso3166 AND cdp.iso3166_2 = iso3166_2_
+SELECT DISTINCT s.*, dp.data_type, dp.quality, dp.grade FROM sources s, country_data_point dp
+WHERE s.source_id = dp.source_id AND iso3166_ = dp.iso3166 AND dp.iso3166_2 = iso3166_2_
 UNION
 SELECT s.*, 'projection'::data_point_type AS data_type FROM sources s
 WHERE s.source_id = 100;
@@ -147,12 +149,14 @@ CREATE OR REPLACE FUNCTION public.get_project_sources(id integer)
                      records int8,
                      data_points int8,
                      latest_curation_at timestamp,
-                     data_type data_point_type
+                     data_type data_point_type,
+                     quality integer,
+                     grade text
                  )
     LANGUAGE sql
     STABLE
 AS $function$
-SELECT DISTINCT s.*, dp.data_type FROM sources s, project_data_point dp
+SELECT DISTINCT s.*, dp.data_type, dp.quality, dp.grade FROM sources s, project_data_point dp
 WHERE s.source_id = dp.source_id AND id = dp.project_id
 UNION
 SELECT s.*, 'projection'::data_point_type AS data_type FROM sources s
