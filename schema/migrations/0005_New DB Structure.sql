@@ -135,7 +135,7 @@ AS $function$
 SELECT DISTINCT s.*, dp.data_type, dp.quality, dp.grade FROM sources s, country_data_point dp
 WHERE s.source_id = dp.source_id AND iso3166_ = dp.iso3166 AND dp.iso3166_2 = iso3166_2_
 UNION
-SELECT s.*, 'projection'::data_point_type AS data_type FROM sources s
+SELECT s.*, 'projection'::data_point_type AS data_type, 1 as quality, 'xp' as grade FROM sources s
 WHERE s.source_id = 100;
 $function$;
 
@@ -159,6 +159,6 @@ AS $function$
 SELECT DISTINCT s.*, dp.data_type, dp.quality, dp.grade FROM sources s, project_data_point dp
 WHERE s.source_id = dp.source_id AND id = dp.project_id
 UNION
-SELECT s.*, 'projection'::data_point_type AS data_type FROM sources s
+SELECT s.*, 'projection'::data_point_type AS data_type, 1 as quality, 'xp' as grade FROM sources s
 WHERE s.source_id = 100;
 $function$;
