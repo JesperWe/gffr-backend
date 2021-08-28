@@ -94,10 +94,10 @@ ALTER TABLE public.project RENAME COLUMN project_id TO project_identifier;
 -- ---------------------------------------------------
 
 CREATE OR REPLACE VIEW sparse_projects AS
-SELECT p.iso3166, p.iso3166_2, p.project_id, pdp.YEAR, pdp.volume, pdp.unit, pdp.fossil_fuel_type, pdp.subtype, pdp.source_id, pdp.data_type
+SELECT p.iso3166, p.iso3166_2, p.project_identifier, pdp.year, pdp.volume, pdp.unit, pdp.fossil_fuel_type, pdp.subtype, pdp.source_id, pdp.data_type
 FROM public.project p, public.project_data_point pdp
 WHERE p.id=pdp.project_id AND p.project_type = 'sparse'
-ORDER BY p.project_id, pdp.data_type, pdp.year;
+ORDER BY p.project_identifier, pdp.data_type, pdp.year;
 
 CREATE OR REPLACE FUNCTION public.get_producing_iso3166()
     RETURNS TABLE(iso3166 text, iso3166_2 text, en text, fr text, es text, sv text)
