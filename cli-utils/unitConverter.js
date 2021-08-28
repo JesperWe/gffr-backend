@@ -45,7 +45,7 @@ export const initUnitConversionGraph = async( pgClient ) => {
 }
 
 export const initCountries = async( pgClient ) => {
-	const result = await pgClient.query( 'select iso3166, en from public.countries' )
+	const result = await pgClient.query( 'select iso3166, en from public.country' )
 	countries = ( result.rows ?? [] ).map( c => ( { iso3166: c.iso3166, en: c.en.toLowerCase() } ) )
 	return countries
 }
@@ -79,7 +79,7 @@ export const convertVolume = ( volume, fuel, fromUnit, toUnit ) => {
 		DEBUG && console.log( fuel, factor, path )
 		return factor * volume
 	} catch( e ) {
-		console.log( e.message + ': ' + fromUnit, toUnit, fuel, graph[ fuel ].serialize() )
+		console.log( e.message + ': ' + fromUnit, toUnit, fuel, graph[ fuel ]?.serialize() )
 		return volume
 	}
 }

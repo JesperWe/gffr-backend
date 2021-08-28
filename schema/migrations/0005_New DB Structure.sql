@@ -87,6 +87,15 @@ ALTER TABLE public.country_data_point ALTER COLUMN iso3166_2 SET DEFAULT '';
 ALTER TABLE public.country_data_point ADD CONSTRAINT country_data_point_fk FOREIGN KEY (iso3166,iso3166_2) REFERENCES public.country(iso3166,iso3166_2) ON DELETE CASCADE;
 
 ALTER TABLE public.project RENAME CONSTRAINT sparse_projects_pk TO projects_pk;
+
+UPDATE public.country SET iso3166_2 = '' WHERE iso3166_2 IS NULL;
+ALTER TABLE public.country ALTER COLUMN iso3166_2 SET NOT NULL;
+ALTER TABLE public.country ALTER COLUMN iso3166_2 SET DEFAULT '';
+
+UPDATE public.project SET iso3166_2 = '' WHERE iso3166_2 IS NULL;
+ALTER TABLE public.project ALTER COLUMN iso3166_2 SET NOT NULL;
+ALTER TABLE public.project ALTER COLUMN iso3166_2 SET DEFAULT '';
+
 ALTER TABLE public.project ADD CONSTRAINT project_fk FOREIGN KEY (iso3166,iso3166_2) REFERENCES public.country(iso3166,iso3166_2) ON DELETE CASCADE;
 
 ALTER TABLE public.project RENAME COLUMN project_id TO project_identifier;
@@ -114,6 +123,19 @@ DROP FUNCTION public.get_sources(text,text,text);
 DROP FUNCTION IF EXISTS public.get_production_sources( text, text,  text);
 DROP FUNCTION IF EXISTS public.get_projection_sources( text, text,  text);
 DROP FUNCTION IF EXISTS public.get_reserves_sources( text, text,  text);
+
+DROP FUNCTION IF EXISTS public.get_projects(text,text);
+CREATE OR REPLACE FUNCTION public.get_projects(iso3166_ text, iso3166_2_ text)
+    RETURNS TABLE(id integer, project_identifier text, co2 float, first_year integer, last_year integer, type project_type)
+    LANGUAGE sql
+    STABLE
+AS $function$
+    SELECT p.id, p.project_identifier, p.production_co2e, min(pdp.year) AS first_year, max(pdp.year) as last_year, p.project_type AS last_year
+        FROM public.project p, public.project_data_point pdp
+        WHERE p.id = pdp.project_id AND (iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2)
+        GROUP BY p.id
+        ORDER BY p.project_identifier;
+$function$;
 
 CREATE OR REPLACE FUNCTION public.get_country_sources(iso3166_ text, iso3166_2_ text DEFAULT ''::text )
     RETURNS TABLE(
@@ -161,4 +183,16 @@ WHERE s.source_id = dp.source_id AND id = dp.project_id
 UNION
 SELECT s.*, 'projection'::data_point_type AS data_type, 1 as quality, 'xp' as grade FROM sources s
 WHERE s.source_id = 100;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_country_current_production(iso3166_ text)
+    RETURNS TABLE(id integer, year integer, volume double precision, unit text, fossil_fuel_type text, source_id integer)
+    LANGUAGE sql
+    STABLE
+AS $function$
+SELECT id, year, volume, unit, fossil_fuel_type, source_id FROM (
+    SELECT *, RANK() OVER (PARTITION BY source_id, fossil_fuel_type ORDER BY year DESC) FROM public.country_data_point cp
+    WHERE cp.iso3166 = iso3166_ AND data_type = 'production'
+    ORDER BY RANK
+) t WHERE RANK=1;
 $function$;
