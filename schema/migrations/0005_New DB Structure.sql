@@ -38,9 +38,6 @@ ALTER TABLE public.country_data_point DROP COLUMN operator_name;
 ALTER TABLE public.country_data_point DROP COLUMN oc_operator_id;
 ALTER TABLE public.country_data_point ADD COLUMN IF NOT EXISTS project_id integer;
 
-ALTER TABLE public.country_data_point ADD CONSTRAINT country_project_fk
-    FOREIGN KEY (project_id) REFERENCES public.project(id) ON DELETE CASCADE;
-
 UPDATE public.country_data_point SET project_id = p.id
 FROM (SELECT * FROM public.project) p
 WHERE p.iso3166 = country_data_point.iso3166 AND p.project_id = country_data_point.project_identifier;
@@ -87,7 +84,6 @@ UPDATE public.country_data_point SET iso3166_2 = '' WHERE iso3166_2 IS NULL;
 ALTER TABLE public.country_data_point ALTER COLUMN iso3166_2 SET NOT NULL;
 ALTER TABLE public.country_data_point ALTER COLUMN iso3166_2 SET DEFAULT '';
 
-ALTER TABLE public.country_data_point DROP CONSTRAINT country_project_fk;
 ALTER TABLE public.country_data_point ADD CONSTRAINT country_data_point_fk FOREIGN KEY (iso3166,iso3166_2) REFERENCES public.country(iso3166,iso3166_2) ON DELETE CASCADE;
 
 ALTER TABLE public.project RENAME CONSTRAINT sparse_projects_pk TO projects_pk;
@@ -103,7 +99,6 @@ UPDATE public.country_data_point SET iso3166_2 = '' WHERE iso3166_2 IS NULL;
 ALTER TABLE public.country_data_point ALTER COLUMN iso3166_2 SET NOT NULL;
 ALTER TABLE public.country_data_point ALTER COLUMN iso3166_2 SET DEFAULT '';
 
-ALTER TABLE public.country_data_point DROP CONSTRAINT country_project_fk;
 ALTER TABLE public.country_data_point ADD CONSTRAINT country_data_point_fk FOREIGN KEY (iso3166,iso3166_2) REFERENCES public.country(iso3166,iso3166_2) ON DELETE CASCADE;
 
 ALTER TABLE public.project RENAME CONSTRAINT sparse_projects_pk TO projects_pk;
