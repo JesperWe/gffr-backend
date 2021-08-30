@@ -179,7 +179,7 @@ CREATE OR REPLACE FUNCTION public.get_country_sources(iso3166_ text, iso3166_2_ 
     LANGUAGE sql
     STABLE
 AS $function$
-SELECT DISTINCT s.*, dp.data_type, dp.quality, array_agg(DISTINCT dp.grade), max(dp.YEAR)
+SELECT DISTINCT s.*, dp.data_type, dp.quality, array_agg(dp.grade), max(dp.YEAR)
 FROM sources s, country_data_point dp
 WHERE s.source_id = dp.source_id AND iso3166_ = dp.iso3166 AND dp.iso3166_2 = iso3166_2_
 GROUP BY s.source_id, dp.data_type, dp.quality
@@ -187,7 +187,6 @@ UNION
 SELECT s.*, 'projection'::data_point_type AS data_type, 1 as quality, array['xp'] as grades, 2020 AS year FROM sources s
 WHERE s.source_id = 100;
 $function$;
-
 
 CREATE OR REPLACE FUNCTION public.get_project_sources( for_id integer )
     RETURNS TABLE(
