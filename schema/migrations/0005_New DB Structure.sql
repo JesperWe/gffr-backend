@@ -1,6 +1,8 @@
--- Unused table
+-- Unused stuff
 
 DROP TABLE public.languages;
+COMMENT ON TABLE public.migrations IS '@omit';
+DROP FUNCTION public.get_producing_countries();
 
 -- Use data point table for all kinds of projects.
 
@@ -103,10 +105,42 @@ ALTER TABLE public.project RENAME COLUMN project_id TO project_identifier;
 -- ---------------------------------------------------
 
 CREATE OR REPLACE VIEW sparse_projects AS
-SELECT p.iso3166, p.iso3166_2, p.project_identifier, pdp.year, pdp.volume, pdp.unit, pdp.fossil_fuel_type, pdp.subtype, pdp.source_id, pdp.data_type
-FROM public.project p, public.project_data_point pdp
-WHERE p.id=pdp.project_id AND p.project_type = 'sparse'
+SELECT p.iso3166,
+       p.iso3166_2,
+       p.project_identifier,
+       pdp.year,
+       pdp.volume,
+       pdp.unit,
+       pdp.fossil_fuel_type,
+       pdp.subtype,
+       pdp.source_id,
+       pdp.data_type
+FROM public.project p,
+     public.project_data_point pdp
+WHERE p.id = pdp.project_id
+  AND p.project_type = 'sparse'
 ORDER BY p.project_identifier, pdp.data_type, pdp.year;
+COMMENT ON VIEW public.sparse_projects IS '@omit';
+GRANT ALL ON TABLE public.sparse_projects TO grff;
+
+CREATE OR REPLACE VIEW public.dense_projects
+AS SELECT p.iso3166,
+          p.iso3166_2,
+          p.project_identifier,
+          p.production_co2e,
+          pdp.year,
+          pdp.volume,
+          pdp.unit,
+          pdp.fossil_fuel_type,
+          pdp.subtype,
+          pdp.source_id,
+          pdp.data_type
+   FROM project p,
+        project_data_point pdp
+   WHERE p.id = pdp.project_id AND p.project_type = 'dense'::project_type
+   ORDER BY p.project_identifier, pdp.data_type, pdp.year;
+COMMENT ON VIEW public.dense_projects IS '@omit';
+GRANT ALL ON TABLE public.dense_projects TO grff;
 
 CREATE OR REPLACE FUNCTION public.get_producing_iso3166()
     RETURNS TABLE(iso3166 text, iso3166_2 text, en text, fr text, es text, sv text)
