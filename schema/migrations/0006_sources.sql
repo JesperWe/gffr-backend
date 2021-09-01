@@ -59,3 +59,57 @@ SELECT s.source_id,
 FROM sources s
 WHERE s.source_id = 100;
 $function$;
+
+DROP FUNCTION get_project_sources(integer);
+CREATE OR REPLACE FUNCTION public.get_project_sources(for_id integer)
+    RETURNS TABLE
+            (
+                source_id          integer,
+                name               text,
+                name_pretty        text,
+                description        text,
+                url                text,
+                document_url       text,
+                records            bigint,
+                data_points        bigint,
+                latest_curation_at timestamp without time zone,
+                data_type          data_point_type,
+                quality            integer,
+                grade              text
+            )
+    LANGUAGE sql
+    STABLE
+AS
+$function$
+SELECT DISTINCT s.source_id,
+                s.name,
+                s.name_pretty,
+                s.description,
+                s.url,
+                s.document_url,
+                s.records,
+                s.data_points,
+                s.latest_curation_at,
+                dp.data_type,
+                dp.quality,
+                dp.grade
+FROM sources s,
+     project_data_point dp
+WHERE s.source_id = dp.source_id
+  AND for_id = dp.project_id
+UNION
+SELECT s.source_id,
+       s.name,
+       s.name_pretty,
+       s.description,
+       s.url,
+       s.document_url,
+       s.records,
+       s.data_points,
+       s.latest_curation_at,
+       'projection'::data_point_type AS data_type,
+       1                             as quality,
+       'xp'                          as grade
+FROM sources s
+WHERE s.source_id = 100;
+$function$;
