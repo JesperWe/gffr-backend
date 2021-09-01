@@ -113,3 +113,16 @@ SELECT s.source_id,
 FROM sources s
 WHERE s.source_id = 100;
 $function$;
+
+DROP FUNCTION get_projects(text,text);
+CREATE OR REPLACE FUNCTION public.get_projects(iso3166_ text, iso3166_2_ text)
+    RETURNS TABLE(id integer, project_identifier text, co2 double precision, first_year integer, last_year integer, project_type project_type)
+    LANGUAGE sql
+    STABLE
+AS $function$
+SELECT p.id, p.project_identifier, p.production_co2e, min(pdp.year) AS first_year, max(pdp.year) as last_year, p.project_type
+FROM public.project p, public.project_data_point pdp
+WHERE p.id = pdp.project_id AND (iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2)
+GROUP BY p.id
+ORDER BY p.project_identifier;
+$function$;
