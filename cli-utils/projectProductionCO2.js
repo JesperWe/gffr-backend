@@ -3,6 +3,10 @@ import { convertVolume, initCountries, initUnitConversionGraph } from "./unitCon
 
 const DEBUG = true
 
+function _join( a, b ) {
+	return a + ( b ? '|' + b : '' )
+}
+
 try {
 	await pgClient.connect()
 	console.log( 'CONNECTED' )
@@ -10,9 +14,6 @@ try {
 	await initUnitConversionGraph( pgClient )
 	await initCountries( pgClient )
 	//console.log( graph?.coal?.serialize() )
-
-	//const rows1 = await pgClient.query( 'TRUNCATE public.sparse_data_point RESTART IDENTITY CASCADE' )
-	//const rows2 = await pgClient.query( 'TRUNCATE public.sparse_projects RESTART IDENTITY' )
 
 	const result = await pgClient.query(
 		`SELECT p.id,
@@ -61,8 +62,10 @@ try {
 			console.log( 'BAD DATA POINT', { data, project } )
 			continue
 		}
-		//console.log(  data )
-		currentEmissions += convertVolume( data?.volume, data?.fossil_fuel_type, data?.unit, 'kgco2e' )
+		const fuel = _join( data?.fossil_fuel_type, data?.subtype )
+		const emissions = convertVolume( data?.volume, fuel, data?.unit, 'kgco2e' ) + convertVolume( data?.volume, fuel, data?.unit, 'kgco2e|GWP100' )
+		console.log( { fuel, data, emissions } )
+		currentEmissions += emissions
 	}
 
 	if( currentProject ) { // Last one
@@ -71,8 +74,9 @@ try {
 	}
 
 	console.log( 'DONE' )
-	await pgClient.end()
-	console.log( 'DISCONNECTED' )
 } catch( e ) {
 	console.log( e )
 }
+
+await pgClient.end()
+console.log( 'DISCONNECTED' )
