@@ -1,6 +1,6 @@
 import Graph from 'graph-data-structure'
 
-const DEBUG = true
+const DEBUG = false
 
 const fuelTypes = []
 const graph = {}
