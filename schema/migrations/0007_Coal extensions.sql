@@ -33,3 +33,14 @@ $$ LANGUAGE sql STABLE;
 GRANT EXECUTE ON FUNCTION public.project_data_point_count(project) TO grff;
 
 CREATE INDEX project_data_point_project_id_idx ON public.project_data_point (project_id);
+
+CREATE OR REPLACE FUNCTION public.get_producing_iso3166()
+ RETURNS TABLE(iso3166 text, iso3166_2 text, en text, fr text, es text, sv text)
+ LANGUAGE sql
+ STABLE
+AS $function$
+SELECT DISTINCT prod.iso3166, prod.iso3166_2, c.en, c.fr, c.es, c.sv FROM
+    (SELECT DISTINCT iso3166, COALESCE(iso3166_2, '') AS iso3166_2 FROM public.country_data_point WHERE data_type = 'production') prod
+        JOIN public.country c ON c.iso3166 = prod.iso3166 AND c.iso3166_2 = prod.iso3166_2
+ORDER BY prod.iso3166;
+$function$;
