@@ -4,7 +4,7 @@ const DEBUG = false
 
 const fuelTypes = []
 const graph = {}
-const conversion = {}
+const conversions = {}
 let countries = []
 
 function _join( a, b ) {
@@ -16,29 +16,35 @@ export const initUnitConversionGraph = async( pgClient ) => {
 	const _constants = result.rows ?? []
 
 	const constants = _constants.map( c => {
-		c.toUnit = _join( c.to_unit, c.modifier )
 		c.fuel = _join( c.fossil_fuel_type, c.subtype )
-
-		if( !conversion[ c.from_unit ] ) conversion[ c.from_unit ] = {}
-
 		if( !fuelTypes.includes( c.fuel ) ) fuelTypes.push( c.fuel )
-
-		conversion[ c.from_unit ][ c.toUnit ] = {
-			id: c.id,
-			factor: c.factor,
-			low: c.low,
-			high: c.high,
-			fuel: c.fuel
-		}
 		return c
 	} )
 
-	// Build one Graph() per fuel type
+	// Build one Graph() and conversions table per fuel type
 	fuelTypes.forEach( t => {
 
 		graph[ t ] = Graph()
+
 		const thisFuelConversions = constants.filter( c => c.fuel === t || c.fossil_fuel_type === null )
 		DEBUG && console.log( t, constants.length, thisFuelConversions.length )
+
+		// Build conversions tabkle for this fuel
+		conversions[ t ] = {}
+		const conversion = conversions[ t ]
+		thisFuelConversions.forEach( c => {
+			c.toUnit = _join( c.to_unit, c.modifier )
+
+			if( !conversion[ c.from_unit ] ) conversion[ c.from_unit ] = {}
+			conversion[ c.from_unit ][ c.toUnit ] = {
+				id: c.id,
+				factor: c.factor,
+				low: c.low,
+				high: c.high,
+				fuel: c.fuel
+			}
+			return c
+		} )
 
 		// Add all unique units as nodes
 		const allUnits = {}
@@ -73,8 +79,11 @@ export const getISO3166 = name => {
 
 export const convertVolume = ( volume, fuel, fromUnit, toUnit ) => {
 	try {
+		//console.log( fuel, graph[ fuel ].serialize() )
+
 		const path = graph[ fuel ].shortestPath( fromUnit, toUnit )
 		let factor = 1
+		const conversion = conversions[fuel]
 
 		for( let step = 1; step < path.length; step++ ) {
 			const from = path[ step - 1 ]
@@ -84,7 +93,8 @@ export const convertVolume = ( volume, fuel, fromUnit, toUnit ) => {
 
 			if( !conv ) throw new Error(
 				`Conversion data issue: From ${ from } to ${ to } for ${ fuel } is ${ JSON.stringify( conv ) }` )
-			//console.log( { from, to, conv, factor } )
+
+			DEBUG && console.log( { from, to, conv, factor, fuel } )
 			factor *= conv.factor
 		}
 

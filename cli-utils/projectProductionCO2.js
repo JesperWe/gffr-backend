@@ -1,7 +1,7 @@
 import { pgClient } from "./pool.js"
 import { convertVolume, initCountries, initUnitConversionGraph } from "./unitConverter.js"
 
-const DEBUG = true
+const DEBUG = false
 
 function _join( a, b ) {
 	return a + ( b ? '|' + b : '' )
@@ -15,14 +15,12 @@ try {
 	await initCountries( pgClient )
 	//console.log( graph?.coal?.serialize() )
 
-	const result = await pgClient.query(
+	let result = await pgClient.query(
 		`SELECT p.id,
                 p.project_identifier,
                 min(pdp.year) AS first_year,
                 max(pdp.year) AS last_year,
-                pdp.fossil_fuel_type,
-                pdp.subtype,
-                pdp.source_id
+                methane_m3_ton
          FROM public.project p,
               public.project_data_point pdp
          WHERE p.id = pdp.project_id
@@ -32,49 +30,50 @@ try {
 	)
 	const projects = result.rows ?? []
 
-	let currentProject, currentEmissions = 0
 	for( const project of projects ) {
-		//DEBUG && console.log( 'Project', project )
+		DEBUG && console.log( 'Project', project )
 
-		if( currentProject && currentProject !== project.id ) {
-			// Save emissions
-			const res = await pgClient.query( 'update public.project set production_co2e = $1 where id=$2', [ currentEmissions, currentProject ] )
-			DEBUG && console.log( 'SAVED', { currentProject, currentEmissions } )
-			currentEmissions = 0
-		}
+		let currentEmissions = 0
 
-		currentProject = project.id
+		result = await pgClient.query(
+			`SELECT * FROM public.project_data_point pdp
+        	 WHERE project_id = $1 AND pdp.data_type = 'production'`,
+			[ project.id ]
+		)
 
-		const params = [ project.id, project.fossil_fuel_type, project.source_id, project.last_year ]
-		if( project.subtype ) params.push( project.subtype )
+		const dataPoints = result.rows ?? []
 
-		const r = await pgClient.query( `
-            select *
-            from public.project_data_point
-            where project_id = $1
-              and fossil_fuel_type = $2
-              and source_id = $3
-              and year = $4` + ( project.subtype ? ' and subtype=$5' : '' ),
-			params )
+		dataPoints.forEach( data => {
+			if( !data || !data.unit ) {
+				console.log( 'BAD DATA POINT', { data, project } )
+				return
+			}
 
-		const data = r.rows?.[ 0 ]
-		if( !data || !data.unit ) {
-			console.log( 'BAD DATA POINT', { data, project } )
-			continue
-		}
-		const fuel = _join( data?.fossil_fuel_type, data?.subtype )
-		const emissions = convertVolume( data?.volume, fuel, data?.unit, 'kgco2e' ) + convertVolume( data?.volume, fuel, data?.unit, 'kgco2e|GWP100' )
-		console.log( { fuel, data, emissions } )
-		currentEmissions += emissions
+			const fuel = _join( data?.fossil_fuel_type, data?.subtype )
+			if( project.methane_m3_ton ) {
+				// Calculate Scope1 for sparse project from production volume
+				const e6ProductionTons = convertVolume( data?.volume, data.fossil_fuel_type, data?.unit, 'e6ton' )
+				const e6m3Methane = e6ProductionTons * project.methane_m3_ton
+				const e3tonMethane = convertVolume( e6m3Methane, data.fossil_fuel_type, 'e6m3', 'e3ton|sparse-scope1' )
+				const scope1 = convertVolume( e3tonMethane * 1000000, 'coal', 'ch4kg', 'kgco2e|GWP100' )
+				DEBUG && console.log( 'ADD CH4', { fuel, data, scope1: ( scope1 / 1e9 ).toFixed( 1 ) } )
+				currentEmissions += scope1
+			} else {
+				const scope1 = convertVolume( data?.volume, fuel, data?.unit, 'kgco2e|GWP100' )
+				DEBUG && console.log( 'ADD', { fuel, data, scope1: ( scope1 / 1e9 ).toFixed( 1 ) } )
+				currentEmissions += scope1
+			}
+			const scope3 = convertVolume( data?.volume, fuel, data?.unit, 'kgco2e' )
+			DEBUG && console.log( 'ADD', { fuel, data, scope3: ( scope3 / 1e9 ).toFixed( 1 ) } )
+			currentEmissions += scope3
+		} )
+
+		console.log( 'SAVE', project.project_identifier, ( currentEmissions / 1e9 ).toFixed( 1 ) )
+		const res = await pgClient.query( 'UPDATE public.project SET production_co2e = $1 WHERE id=$2', [ currentEmissions, project.id ] )
 	}
-
-	if( currentProject ) { // Last one
-		const res = await pgClient.query( 'update public.project set production_co2e = $1 where id=$2', [ currentEmissions, currentProject ] )
-		DEBUG && console.log( 'SAVED', { currentProject, currentEmissions } )
-	}
-
 	console.log( 'DONE' )
-} catch( e ) {
+} catch
+	( e ) {
 	console.log( e )
 }
 
