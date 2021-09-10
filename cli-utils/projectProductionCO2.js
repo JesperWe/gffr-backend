@@ -1,7 +1,7 @@
 import { pgClient } from "./pool.js"
 import { convertVolume, initCountries, initUnitConversionGraph } from "./unitConverter.js"
 
-const DEBUG = false
+const DEBUG = true
 
 function _join( a, b ) {
 	return a + ( b ? '|' + b : '' )
@@ -31,17 +31,18 @@ try {
 	const projects = result.rows ?? []
 
 	for( const project of projects ) {
-		DEBUG && console.log( 'Project', project )
 
 		let currentEmissions = 0
+		let processedFuels = []
 
 		result = await pgClient.query(
-			`SELECT * FROM public.project_data_point pdp
-        	 WHERE project_id = $1 AND pdp.data_type = 'production'`,
+			`SELECT DISTINCT "year", volume, unit, fossil_fuel_type, subtype, source_id FROM public.project_data_point pdp
+        	 WHERE project_id = $1 AND pdp.data_type = 'production' ORDER BY "year" DESC`,
 			[ project.id ]
 		)
 
 		const dataPoints = result.rows ?? []
+		DEBUG && console.log( 'Project', project, dataPoints )
 
 		dataPoints.forEach( data => {
 			if( !data || !data.unit ) {
@@ -50,6 +51,9 @@ try {
 			}
 
 			const fuel = _join( data?.fossil_fuel_type, data?.subtype )
+			if( processedFuels.includes( fuel ) ) return
+			processedFuels.push(fuel)
+
 			if( project.methane_m3_ton ) {
 				// Calculate Scope1 for sparse project from production volume
 				const e6ProductionTons = convertVolume( data?.volume, data.fossil_fuel_type, data?.unit, 'e6ton' )
