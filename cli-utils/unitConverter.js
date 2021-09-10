@@ -34,9 +34,10 @@ export const initUnitConversionGraph = async( pgClient ) => {
 		const conversion = conversions[ t ]
 		thisFuelConversions.forEach( c => {
 			c.toUnit = _join( c.to_unit, c.modifier )
+			c.fromUnit = _join( c.from_unit, c.country )
 
-			if( !conversion[ c.from_unit ] ) conversion[ c.from_unit ] = {}
-			conversion[ c.from_unit ][ c.toUnit ] = {
+			if( !conversion[ c.fromUnit ] ) conversion[ c.fromUnit ] = {}
+			conversion[ c.fromUnit ][ c.toUnit ] = {
 				id: c.id,
 				factor: c.factor,
 				low: c.low,
@@ -49,14 +50,14 @@ export const initUnitConversionGraph = async( pgClient ) => {
 		// Add all unique units as nodes
 		const allUnits = {}
 		thisFuelConversions.forEach( u => {
-			allUnits[ u.from_unit ] = true
+			allUnits[ u.fromUnit ] = true
 			allUnits[ u.toUnit ] = true
 		} )
 		Object.keys( allUnits ).forEach( u => graph[ t ].addNode( u ) )
 
 		thisFuelConversions.forEach( conv => {
-			DEBUG && console.log( t, conv.from_unit, '-->', conv.toUnit )
-			graph[ t ].addEdge( conv.from_unit, conv.toUnit )
+			DEBUG && console.log( t, conv.fromUnit, '-->', conv.toUnit )
+			graph[ t ].addEdge( conv.fromUnit, conv.toUnit )
 		} )
 	} )
 	return graph
@@ -77,13 +78,20 @@ export const getISO3166 = name => {
 	return row.iso3166
 }
 
-export const convertVolume = ( volume, fuel, fromUnit, toUnit ) => {
+export const convertVolume = ( volume, fuel, fromUnit, toUnit, country ) => {
 	try {
 		//console.log( fuel, graph[ fuel ].serialize() )
+		//console.log( fuel, conversions[ fuel ] )
 
-		const path = graph[ fuel ].shortestPath( fromUnit, toUnit )
+		const fromSpecific = _join( fromUnit, country )
+		let fromU = fromUnit
+		if( graph[ fuel ].serialize().nodes.find( n => n.id === fromSpecific ) ) {
+			console.log( 'FOUND', fromSpecific )
+			fromU = fromSpecific
+		}
+		const path = graph[ fuel ].shortestPath( fromU, toUnit )
 		let factor = 1
-		const conversion = conversions[fuel]
+		const conversion = conversions[ fuel ]
 
 		for( let step = 1; step < path.length; step++ ) {
 			const from = path[ step - 1 ]
