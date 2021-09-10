@@ -25,7 +25,6 @@ try {
               public.project_data_point pdp
          WHERE p.id = pdp.project_id
            AND pdp.data_type = 'production'
-           AND p.id = 915
          GROUP BY p.id, pdp.fossil_fuel_type, pdp.subtype, pdp.source_id
          ORDER BY p.project_identifier`
 	)
