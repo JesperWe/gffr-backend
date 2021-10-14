@@ -29,7 +29,7 @@ export const initUnitConversionGraph = async( pgClient ) => {
 		const thisFuelConversions = constants.filter( c => c.fuel === t || c.fossil_fuel_type === null )
 		DEBUG && console.log( t, constants.length, thisFuelConversions.length )
 
-		// Build conversions tabkle for this fuel
+		// Build conversions table for this fuel
 		conversions[ t ] = {}
 		const conversion = conversions[ t ]
 		thisFuelConversions.forEach( c => {
@@ -85,8 +85,9 @@ export const convertVolume = ( volume, fuel, fromUnit, toUnit, country ) => {
 
 		const fromSpecific = _join( fromUnit, country )
 		let fromU = fromUnit
+		if( !graph[ fuel ] ) throw new Error( 'No conversion graph for ' + fuel )
 		if( graph[ fuel ].serialize().nodes.find( n => n.id === fromSpecific ) ) {
-			console.log( 'FOUND', fromSpecific )
+			DEBUG && console.log( 'FOUND', fromSpecific )
 			fromU = fromSpecific
 		}
 		const path = graph[ fuel ].shortestPath( fromU, toUnit )

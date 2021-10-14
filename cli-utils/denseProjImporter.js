@@ -39,7 +39,7 @@ try {
 		console.log( `Deleted ${ deleted.rowCount } projects.` )
 	}
 
-	var bar = new ProgressBar( '[:bar] :percent', { total: projects.length, width: 100 } )
+	const bar = new ProgressBar( '[:bar] :percent', { total: projects.length, width: 100 } )
 
 	console.log( `Importing ${ projects?.length } projects.` )
 

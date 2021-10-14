@@ -1,7 +1,10 @@
 import { pgClient } from "./pool.js"
 import { convertVolume, initCountries, initUnitConversionGraph } from "./unitConverter.js"
+import ProgressBar from 'progress'
 
 const DEBUG = false
+
+const args = process.argv.slice( 2 )
 
 function _join( a, b ) {
 	return a + ( b ? '|' + b : '' )
@@ -9,7 +12,7 @@ function _join( a, b ) {
 
 try {
 	await pgClient.connect()
-	console.log( 'CONNECTED' )
+	console.log( 'DB connected.' )
 
 	await initUnitConversionGraph( pgClient )
 	await initCountries( pgClient )
@@ -25,11 +28,12 @@ try {
               public.project_data_point pdp
          WHERE p.id = pdp.project_id
            AND pdp.data_type = 'production'
-           AND p.iso3166 = 'in'
+           AND p.iso3166 = '${args[0]}'
          GROUP BY p.id, pdp.fossil_fuel_type, pdp.subtype, pdp.source_id
          ORDER BY p.project_identifier`
 	)
 	const projects = result.rows ?? []
+	const bar = new ProgressBar( '[:bar] :percent', { total: projects.length, width: 100 } )
 
 	for( const project of projects ) {
 
@@ -38,7 +42,10 @@ try {
 
 		result = await pgClient.query(
 			`SELECT DISTINCT "year", volume, unit, fossil_fuel_type, subtype, source_id FROM public.project_data_point pdp
-        	 WHERE project_id = $1 AND pdp.data_type = 'production' ORDER BY "year" DESC`,
+        	 WHERE project_id = $1 
+        	 	AND pdp.data_type = 'production'
+	        	AND pdp.fossil_fuel_type IN ('oil', 'gas', 'coal')
+        	 ORDER BY "year" DESC`,
 			[ project.id ]
 		)
 
@@ -75,8 +82,9 @@ try {
 			currentEmissions += scope3
 		} )
 
-		console.log( 'SAVE', project.project_identifier, ( currentEmissions / 1e9 ).toFixed( 1 ) )
+		DEBUG && console.log( 'SAVE', project.project_identifier, ( currentEmissions / 1e9 ).toFixed( 1 ) )
 		const res = await pgClient.query( 'UPDATE public.project SET production_co2e = $1 WHERE id=$2', [ currentEmissions, project.id ] )
+		bar.tick()
 	}
 	console.log( 'DONE' )
 } catch
@@ -85,4 +93,4 @@ try {
 }
 
 await pgClient.end()
-console.log( 'DISCONNECTED' )
+console.log( 'DB disconnected.' )
