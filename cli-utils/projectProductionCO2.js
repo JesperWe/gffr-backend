@@ -25,6 +25,7 @@ try {
               public.project_data_point pdp
          WHERE p.id = pdp.project_id
            AND pdp.data_type = 'production'
+           AND p.iso3166 = 'in'
          GROUP BY p.id, pdp.fossil_fuel_type, pdp.subtype, pdp.source_id
          ORDER BY p.project_identifier`
 	)
@@ -50,9 +51,11 @@ try {
 				return
 			}
 
+			if( !( data.year > 0 ) ) return
+
 			const fuel = _join( data?.fossil_fuel_type, data?.subtype )
 			if( processedFuels.includes( fuel ) ) return
-			processedFuels.push(fuel)
+			processedFuels.push( fuel )
 
 			if( project.methane_m3_ton ) {
 				// Calculate Scope1 for sparse project from production volume
