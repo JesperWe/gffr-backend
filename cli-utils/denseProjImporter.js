@@ -31,15 +31,37 @@ try {
 
 	const content = await fs.readFile( args[ 0 ] )
 	const data = await fs.readFile( args[ 1 ] )
-	const projects = parse( content, { columns: true, skip_empty_lines: true } )
+	const _projects = parse( content, { columns: true, skip_empty_lines: true } )
 	const dataPoints = parse( data, { columns: true, skip_empty_lines: true } )
+
+	if( _projects?.length === 0 ) {
+		console.log( `Zarro projects.` )
+		process.exit()
+	}
 
 	if( args[ 2 ] ) {
 		const deleted = await pgClient.query( `DELETE FROM public.project WHERE ${args[2]}`, [] )
 		console.log( `Deleted ${ deleted.rowCount } projects.` )
 	}
 
+	// First look for multiple entries and merge company data
+	let lastProj = {}
+	const projects = []
+	_projects.forEach( p => {
+		if( lastProj.id !== p.id ) {
+			if( lastProj.id ) {
+				projects.push( lastProj )
+				//console.log( lastProj )
+			}
+			lastProj = p
+		} else {
+			lastProj.operator_name += '\f' + p.operator_name
+		}
+	} )
+	projects.push( lastProj )
+
 	const bar = new ProgressBar( '[:bar] :percent', { total: projects.length, width: 100 } )
+	let noDataCounter = 0
 
 	console.log( `Importing ${ projects?.length } projects.` )
 
@@ -52,6 +74,11 @@ try {
 			/* 05 */ project[ 'oc_operator_id' ]
 		]
 
+		if( !project.id ) {
+			console.log( project )
+			throw new Error( 'Project has no id property.' )
+		}
+
 		const inserted = await pgClient.query(
 			`INSERT INTO public.project	
              (iso3166, iso3166_2, project_identifier, operator_name, oc_operator_id, project_type)
@@ -61,20 +88,28 @@ try {
 		const last_id = inserted.rows?.[ 0 ]?.id
 
 		const points = dataPoints.filter( p => p.project_id === project[ 'id' ] )
-		const insertStream = pgClient.query( copyFrom( `COPY public.project_data_point ( ${ pointColumns.join( ',' ) } ) FROM STDIN CSV` ) )
+		if( points.length === 0 ) {
+			noDataCounter++
+			// console.log( project )
+			// console.log( dataPoints[ 0 ] )
+			// process.exit()
+		} else {
+			const insertStream = pgClient.query( copyFrom( `COPY public.project_data_point ( ${ pointColumns.join( ',' ) } ) FROM STDIN CSV` ) )
 
-		for( let point of points ) {
-			point.project_id = last_id
-			const pointLine = pointColumns.map( c => point[ c ] ).join( ',' )
-			//console.log( pointLine )
-			insertStream.write( pointLine + '\n' )
+			for( let point of points ) {
+				point.project_id = last_id
+				const pointLine = pointColumns.map( c => point[ c ] ).join( ',' )
+				//console.log( pointLine )
+				insertStream.write( pointLine + '\n' )
+			}
+			insertStream.end()
+			await EventEmitter.once( insertStream, 'finish' )
 		}
-		insertStream.end()
-		await EventEmitter.once( insertStream, 'finish' )
 		bar.tick()
 	}
 
 	await pgClient.end()
+	if( noDataCounter > 0 ) console.log( noDataCounter + ' projects had no data points!' )
 	console.log( 'DB disconnected.' )
 } catch( e ) {
 	console.log( e )
