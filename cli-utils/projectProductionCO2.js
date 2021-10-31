@@ -23,12 +23,13 @@ try {
                 p.project_identifier,
                 min(pdp.year) AS first_year,
                 max(pdp.year) AS last_year,
-                methane_m3_ton
+                methane_m3_ton,
+                project_type
          FROM public.project p,
               public.project_data_point pdp
          WHERE p.id = pdp.project_id
            AND pdp.data_type = 'production'
-           AND p.iso3166 = '${args[0]}'
+           AND ${args[0]}
          GROUP BY p.id, pdp.fossil_fuel_type, pdp.subtype, pdp.source_id
          ORDER BY p.project_identifier`
 	)
@@ -58,7 +59,7 @@ try {
 				return
 			}
 
-			if( !( data.year > 0 ) ) return
+			if( project.project_type === 'dense' && !( data.year > 0 ) ) return // For spares we take all points
 
 			const fuel = _join( data?.fossil_fuel_type, data?.subtype )
 			if( processedFuels.includes( fuel ) ) return

@@ -1,132 +1,197 @@
-import util from 'util'
-import stream from 'stream'
-import csv from 'csv'
+import parse from 'csv-parse/lib/sync.js'
 import { pgClient } from "./pool.js"
-import { convertVolume, initCountries, initUnitConversionGraph } from "./unitConverter.js"
+import copyStream from 'pg-copy-streams'
+import { initCountries, initUnitConversionGraph } from "./unitConverter.js"
+import ProgressBar from 'progress'
+import _fs from 'fs'
+import EventEmitter from 'events'
 
-const { parse, stringify } = csv
-const { Transform } = stream
-const pipeline = util.promisify( stream.pipeline )
+const fs = _fs.promises
+const copyFrom = copyStream.from
+const args = process.argv.slice( 2 )
 
-const insertedProjects = {}
+const pointColumns = [ "project_id", "data_type", "year", "volume", "unit", "grade", "fossil_fuel_type", "subtype", "source_id", "quality", "data_year" ]
 
-const filterData = ( fn, options = {} ) =>
-	new Transform( {
-		objectMode: true,
-		...options,
-
-		transform( chunk, encoding, callback ) {
-			if( chunk[ 'iso3166' ]?.length > 0 ) {
-				callback( null, chunk )
-			} else {
-				console.log( '...skip', chunk[ 'Mine_ID' ] )
-				callback( null, undefined )
-			}
-		}
-	} )
-
-const transformData = ( fn, options = {} ) =>
-	new Transform( {
-		objectMode: true,
-		...options,
-
-		async transform( chunk, encoding, callback ) {
-
-			console.log( '+', chunk[ 'source_project_id' ] )
-			chunk.co2e = convertVolume( chunk[ 'volume' ], chunk[ 'fossil_fuel_type' ], chunk[ 'unit' ], 'kgco2e' )
-			//chunk.iso3166 = chunk.ISO3166
-
-			callback( null, chunk )
-		}
-	} )
-
-const dbInsert = async( chunk, cb ) => {
-
-	const projectKey = chunk[ 'iso3166' ] + '-' + chunk[ 'project_id' ]
-	let last_id
-
-	if( insertedProjects[ projectKey ] ) {
-		last_id = insertedProjects[ projectKey ].id
-	} else {
-		const params = [
-			/* 01 */ chunk[ 'iso3166' ],
-			/* 02 */ chunk[ 'iso31662' ] ?? null,
-			/* 03 */ chunk[ 'project_id' ], // project_id
-			/* 04 */ chunk[ 'source_project_name' ], // source_project_name
-			/* 05 */ chunk[ 'source_project_id' ], // source_project_id
-		]
-		console.log( JSON.stringify( params ) )
-		const inserted = await pgClient.query(
-			`INSERT INTO public.sparse_projects
-             (iso3166, iso3166_2, project_id, source_project_name, source_project_id)
-             VALUES ($1, $2, $3, $4, $5)
-             RETURNING *`, params )
-
-		last_id = inserted.rows?.[ 0 ]?.id
-		insertedProjects[ projectKey ] = inserted.rows?.[ 0 ]
-	}
-
-	let dataType = 'production'
-	if( chunk.reserves === 'TRUE' ) dataType = 'reserve'
-	if( chunk.projection === 'TRUE' ) dataType = 'projection'
-
-	const dparams = [
-		/* 01 */ last_id,
-		/* 02 */ parseInt(chunk[ 'year' ]) || null,
-		/* 03 */ parseFloat( chunk[ 'volume' ] ), // volume
-		/* 04 */ chunk[ 'unit' ] ?? 'e6ton', // unit
-		/* 05 */ chunk[ 'grade' ], // grade
-		/* 06 */ chunk[ 'source_id' ],
-		/* 07 */ chunk[ 'fossil_fuel_type' ], // fossil_fuel_type
-		/* 08 */ dataType,
-		/* 09 */ parseInt(chunk[ 'data_year' ]) || null
-	]
-	console.log( JSON.stringify( dparams ) )
-	await pgClient.query(
-		`INSERT INTO public.sparse_data_point
-         (sparse_project_id, year, volume, unit, grade, source_id, fossil_fuel_type, data_type, data_year)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, dparams )
-
-	cb( null, chunk )
-}
-
-const dbSaver = ( fn, options = {} ) =>
-	new Transform( {
-		objectMode: true,
-		...options,
-
-		async transform( chunk, encoding, callback ) {
-			await dbInsert( chunk, callback )
-		}
-	} )
+let errorProj
 
 try {
+	if( !args[ 0 ] ) {
+		console.log( 'Missing project file!' )
+		process.exit()
+	}
+
 	await pgClient.connect()
-	console.log( 'CONNECTED' )
+	console.log( 'DB connected.' )
 
 	await initUnitConversionGraph( pgClient )
 	await initCountries( pgClient )
 
-	await pipeline(
-		process.stdin,
-		parse( { delimiter: ',', columns: true } ),
-		filterData(),
-		transformData(),
-		dbSaver(),
-		stringify( { delimiter: ',', header: true } ),
-		process.stdout,
-		( err ) => {
-			if( err ) {
-				console.error( 'Pipeline failed', err.message )
-			} else {
-				console.log( 'Pipeline succeeded' )
-			}
+	let fails = '', failCounter = 0
+
+	const content = await fs.readFile( args[ 0 ] )
+
+	const columnMap = {
+		'Unit ID': 'project_identifier',
+		'Quantity (converted)': 'volume',
+		'Units (converted)': 'source_unit',
+		'fuel_type': 'fossil_fuel_type',
+		'': '',
+	}
+
+	const unitMap = {
+		'million m³/y': 'e6m3',
+		'million bbl/y': 'e6bbl',
+		'million boe/y': 'e6boe',
+	}
+
+	const _projects = parse( content,
+		{
+			skip_empty_lines: true,
+			columns: header =>
+				header.map( column => columnMap[ column.trim() ] ?? column.trim() )
 		}
 	)
-	console.log( 'PIPE DONE' )
-	await pgClient.end()
-	console.log( 'DISCONNECTED' )
-} catch( e ) {
-	console.log( e )
-}
 
+	if( _projects?.length === 0 ) {
+		console.log( `Zarro projects.` )
+		process.exit()
+	}
+
+	if( args[ 1 ] ) {
+		// const deleted = await pgClient.query( `DELETE FROM public.project WHERE ${args[1]}`, [] )
+		const deletedOil = await pgClient.query( `DELETE FROM project P USING project_data_point D WHERE P.id = D.project_id AND P."project_type" = 'sparse' AND D.source_id = 15 AND D.fossil_fuel_type = 'oil'`, [] )
+		const deletedGas = await pgClient.query( `DELETE FROM project P USING project_data_point D WHERE P.id = D.project_id AND P."project_type" = 'sparse' AND D.source_id = 15 AND D.fossil_fuel_type = 'gas'`, [] )
+		console.log( `Deleted ${ deletedOil.rowCount } + ${ deletedGas.rowCount } projects.` )
+	}
+
+	// First look for multiple entries and merge project data
+	let lastProj = {}, idSequence = 0
+	const projects = []
+	const dataPoints = []
+
+	console.log( `Preparing ${ _projects?.length } data points.` )
+	console.log( _projects[ 0 ] )
+
+	_projects.forEach( p => {
+		if( lastProj.project_identifier !== p.project_identifier ) {
+			if( lastProj.project_identifier ) {
+				projects.push( lastProj )
+				//console.log( lastProj )
+			}
+			p.id = ++idSequence
+			lastProj = p
+			lastProj.production_co2e = 0
+		} else {
+		}
+
+		const unit = unitMap[ p.source_unit ]
+		if( !unit ) {
+			fails += '\nData point skipped, unknown unit: ' + p.project_identifier
+			failCounter++
+			return
+		}
+
+		if( !p.volume ) {
+			fails += '\nData point skipped, no volume: ' + p.project_identifier
+			failCounter++
+			return
+		}
+
+		if( !( parseFloat( p.volume ) > 0 ) ) {
+			fails += '\nBad volume: ' + p.project_identifier
+			failCounter++
+			return
+		}
+
+		dataPoints.push( {
+			project_id: lastProj.id,
+			data_type: 'production',
+			volume: p.volume,
+			unit,
+			fossil_fuel_type: p.fossil_fuel_type,
+			source_id: 15
+		} )
+
+	} )
+	projects.push( lastProj )
+
+	const bar = new ProgressBar( '[:bar] :percent', { total: projects.length, width: 100 } )
+	let noDataCounter = 0
+
+	if( failCounter > 0 ) {
+		console.log( `Prepare Error count: ${ failCounter }.` )
+		console.log( fails )
+	}
+
+	console.log( `Importing ${ projects?.length } projects.` )
+
+	for( const project of projects ) {
+
+		if( project.ISO3166?.length !== 2 ) {
+			fails += '\nBad ISO3166: ' + JSON.stringify( project )
+			continue
+		}
+
+		let region = project[ ' Subnational unit (province, state) ' ]
+		if( project[ ' Project' ] === 'subnational' ) region = project[ 'Unit name' ]
+
+		const params = [
+			/* 01 */ project[ 'ISO3166' ],
+			/* 02 */ project[ 'iso31662' ] ?? '',
+			/* 03 */ project.project_identifier,
+			/* 04 */ region,
+			/* 05 */ project[ 'Unit name' ], // source_project_name
+			/* 06 */ project.project_identifier, // source_project_id
+			/* 07 */ project[ 'Wiki URL' ], // link_url
+			/* 08 */ project[ 'Data year' ], // data_year
+		]
+
+		if( !project.id ) {
+			console.log( project )
+			throw new Error( 'Project has no id property.' )
+		}
+
+		errorProj = project
+
+		const inserted = await pgClient.query(
+			`INSERT INTO public.project	
+             (iso3166, iso3166_2, project_identifier, region, source_project_name, source_project_id, link_url, data_year, project_type)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'sparse')
+             RETURNING *`, params )
+
+		const last_id = inserted.rows?.[ 0 ]?.id
+
+		const points = dataPoints.filter( p => p.project_id === project[ 'id' ] )
+		if( points.length === 0 ) {
+			noDataCounter++
+			// console.log( project )
+			// console.log( dataPoints[ 0 ] )
+			// process.exit()
+		} else {
+			const insertStream = pgClient.query( copyFrom( `COPY public.project_data_point ( ${ pointColumns.join( ',' ) } ) FROM STDIN CSV` ) )
+
+			for( let point of points ) {
+				point.project_id = last_id
+				const pointLine = pointColumns.map( c => point[ c ] ).join( ',' )
+				//console.log( pointLine )
+				insertStream.write( pointLine + '\n' )
+			}
+			insertStream.end()
+			await EventEmitter.once( insertStream, 'finish' )
+		}
+		bar.tick()
+	}
+
+	await pgClient.end()
+	if( noDataCounter > 0 ) console.log( noDataCounter + ' projects had no data points!' )
+	if( fails.length ) {
+		console.log( 'Failures:' )
+		console.log( fails )
+	}
+	console.log( 'DB disconnected.' )
+} catch( e ) {
+	await pgClient.end()
+	console.log( e )
+	console.log( 'Last project was:' )
+	console.log( errorProj )
+}
