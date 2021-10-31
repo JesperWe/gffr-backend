@@ -138,7 +138,7 @@ try {
 		const params = [
 			/* 01 */ project[ 'ISO3166' ],
 			/* 02 */ project[ 'iso31662' ] ?? '',
-			/* 03 */ project.project_identifier,
+			/* 03 */ project[ 'Unit name' ],
 			/* 04 */ region,
 			/* 05 */ project[ 'Unit name' ], // source_project_name
 			/* 06 */ project.project_identifier, // source_project_id
