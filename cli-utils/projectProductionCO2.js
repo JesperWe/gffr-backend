@@ -24,7 +24,8 @@ try {
                 min(pdp.year) AS first_year,
                 max(pdp.year) AS last_year,
                 methane_m3_ton,
-                project_type
+                project_type,
+                iso3166
          FROM public.project p,
               public.project_data_point pdp
          WHERE p.id = pdp.project_id
@@ -84,6 +85,7 @@ try {
 		} )
 
 		DEBUG && console.log( 'SAVE', project.project_identifier, ( currentEmissions / 1e9 ).toFixed( 1 ) )
+		if( currentEmissions === 0 ) console.log( 'Zero emissions: ', project )
 		const res = await pgClient.query( 'UPDATE public.project SET production_co2e = $1 WHERE id=$2', [ currentEmissions, project.id ] )
 		bar.tick()
 	}
