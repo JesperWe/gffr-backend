@@ -144,6 +144,7 @@ try {
 			/* 06 */ project.project_identifier, // source_project_id
 			/* 07 */ project[ 'Wiki URL' ], // link_url
 			/* 08 */ project[ 'Data year' ], // data_year
+			/* 09 */ project[ 'Project' ] === 'subnational' ? [ 'subnational' ] : null, // tags
 		]
 
 		if( !project.id ) {
@@ -155,8 +156,8 @@ try {
 
 		const inserted = await pgClient.query(
 			`INSERT INTO public.project	
-             (iso3166, iso3166_2, project_identifier, region, source_project_name, source_project_id, link_url, data_year, project_type)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'sparse')
+             (iso3166, iso3166_2, project_identifier, region, source_project_name, source_project_id, link_url, data_year, project_type, tags)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'sparse', $9)
              RETURNING *`, params )
 
 		const last_id = inserted.rows?.[ 0 ]?.id

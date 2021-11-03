@@ -111,6 +111,6 @@ export const convertVolume = ( volume, fuel, fromUnit, toUnit, country ) => {
 		return factor * volume
 	} catch( e ) {
 		console.log( e.message + ': ' + fromUnit, toUnit, fuel /*, graph[ fuel ]?.serialize() */ )
-		return volume
+		return 0
 	}
 }
