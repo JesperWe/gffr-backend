@@ -116,13 +116,13 @@ $function$;
 
 DROP FUNCTION get_projects(text,text);
 CREATE OR REPLACE FUNCTION public.get_projects(iso3166_ text, iso3166_2_ text)
-    RETURNS TABLE(id integer, project_identifier text, co2 double precision, first_year integer, last_year integer, project_type project_type)
-    LANGUAGE sql
-    STABLE
+ RETURNS TABLE(id integer, project_identifier text, co2 double precision, first_year integer, last_year integer, data_year integer, project_type project_type, fuels text[], geo_position geometry)
+ LANGUAGE sql
+ STABLE
 AS $function$
-SELECT p.id, p.project_identifier, p.production_co2e, min(pdp.year) AS first_year, max(pdp.year) as last_year, p.project_type
+SELECT p.id, p.project_identifier, p.production_co2e, min(pdp.year) AS first_year, max(pdp.year) as last_year, p.data_year, p.project_type, ARRAY_AGG(DISTINCT pdp.fossil_fuel_type)::text[], p.geo_position
 FROM public.project p, public.project_data_point pdp
-WHERE p.id = pdp.project_id AND (iso3166_ = p.iso3166 AND iso3166_2_ = p.iso3166_2)
+WHERE p.id = pdp.project_id AND (iso3166_ = p.iso3166 AND (iso3166_2_ = p.iso3166_2 OR iso3166_2_ = '')) AND pdp.data_type = 'production'
 GROUP BY p.id
 ORDER BY p.project_identifier;
 $function$;

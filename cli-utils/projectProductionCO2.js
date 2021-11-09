@@ -7,7 +7,7 @@ const DEBUG = false
 const args = process.argv.slice( 2 )
 
 function _join( a, b ) {
-	return a + ( b ? '|' + b : '' )
+	return a + ( b ? '|' + b.toLowerCase() : '' )
 }
 
 try {
@@ -85,7 +85,7 @@ try {
 		} )
 
 		DEBUG && console.log( 'SAVE', project.project_identifier, ( currentEmissions / 1e9 ).toFixed( 1 ) )
-		if( currentEmissions === 0 ) console.log( 'Zero emissions: ', project )
+		if( currentEmissions === 0 ) console.log( 'Zero emissions: ', project.id, project.iso3166, project.project_identifier )
 		const res = await pgClient.query( 'UPDATE public.project SET production_co2e = $1 WHERE id=$2', [ currentEmissions, project.id ] )
 		bar.tick()
 	}
