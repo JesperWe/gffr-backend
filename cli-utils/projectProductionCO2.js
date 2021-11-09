@@ -75,7 +75,7 @@ try {
 				DEBUG && console.log( 'ADD CH4', { fuel, data, scope1: ( scope1 / 1e9 ).toFixed( 1 ) } )
 				currentEmissions += scope1
 			} else {
-				const scope1 = convertVolume( data?.volume, fuel, data?.unit, 'kgco2e|GWP100' )
+				const scope1 = convertVolume( data?.volume, data?.fossil_fuel_type, data?.unit, 'kgco2e|GWP100' )
 				DEBUG && console.log( 'ADD', { fuel, data, scope1: ( scope1 / 1e9 ).toFixed( 1 ) } )
 				currentEmissions += scope1
 			}
