@@ -67,15 +67,15 @@ try {
 	const projects = []
 
 	console.log( `Preparing ${ _projects?.length } data points.` )
-	console.log( _projects[ 0 ] )
+	//console.log( _projects[ 0 ] )
 
 	_projects
-		.filter( p => p.row_type === 'Production' )
 		.forEach( p => {
+
 			if( lastProj.project_identifier !== p.project_identifier ) {
 				if( lastProj.project_identifier ) {
 					projects.push( lastProj )
-					//console.log( lastProj )
+					//console.log( lastProj.source_project_id, lastProj.volume, lastProj.dataPoints )
 				}
 				p.id = ++idSequence
 				lastProj = p
@@ -139,6 +139,7 @@ try {
 		} )
 
 	projects.push( lastProj )
+	//console.log( 'Last last', lastProj.source_project_id, lastProj.volume, lastProj.dataPoints )
 
 	const bar = new ProgressBar( '[:bar] :percent', { total: projects.length, width: 100 } )
 	let noDataCounter = 0
@@ -172,6 +173,7 @@ try {
 			/* 12 */ project[ 'Latitude' ] || null, // geo_position,
 			/* 13 */ project[ 'Mine Type' ], // geo_position,
 			/* 14 */ project[ 'Mining Method' ], // geo_position,
+			/* 15 */ project.methane_m3_ton, // methane_m3_ton,
 		]
 
 		if( !project.id ) {
@@ -183,17 +185,18 @@ try {
 
 		const inserted = await pgClient.query(
 			`INSERT INTO public.project	
-             (iso3166, iso3166_2, project_identifier, region, source_project_name, source_project_id, link_url, data_year, oc_operator_id, operator_name, geo_position, production_type, production_method, project_type)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ST_SetSRID(ST_POINT($11, $12), 4326), $13, $14, 'sparse')
+             (iso3166, iso3166_2, project_identifier, region, source_project_name, source_project_id, link_url, data_year, oc_operator_id, 
+             operator_name, geo_position, production_type, production_method, project_type, methane_m3_ton)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ST_SetSRID(ST_POINT($11, $12), 4326), $13, $14, 'sparse', $15)
              RETURNING *`, params )
 
 		const last_id = inserted.rows?.[ 0 ]?.id
 
-		for( const pdp of lastProj.dataPoints ) {
+		for( const pdp of project.dataPoints ) {
 			await pgClient.query(
 				`INSERT INTO public.project_data_point ( ${ pointColumns.join( ',' ) } )
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-				[ last_id, 'production', pdp.volume, pdp.unit, null, 'coal', pdp.subtype, 15, 1 ] )
+				[ last_id, pdp.data_type, pdp.volume, pdp.unit, null, 'coal', pdp.subtype, 15, 1 ] )
 			//"project_id", "data_type", "volume", "unit", "grade", "fossil_fuel_type", "subtype", "source_id", "quality"
 		}
 

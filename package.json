@@ -3,9 +3,6 @@
   "version": "1.0.0",
   "main": "server.js",
   "license": "UNLICENSED",
-  "engines": {
-    "node": "14.x"
-  },
   "devDependencies": {
     "eslint": "^7.23.0",
     "eslint-config-node": "^4.1.0",
