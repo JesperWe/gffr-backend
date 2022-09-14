@@ -46,7 +46,7 @@ async function handler( req, res ) {
 		res.status( 200 ).send( 'Message sent ok' )
 	}
 	catch( error ) {
-		console.error( error.response.body )
+		console.error( error.response?.body )
 		res.status( 500 ).send( error.message )
 	}
 }
