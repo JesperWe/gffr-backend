@@ -2,14 +2,9 @@
 const express = require( 'express' )
 const router = express.Router()
 const fetch = require( 'isomorphic-unfetch' )
+const sendgrid = require( './sendgrid' )
 
-router.post( '/v1/:system/:cmd?/:param?/:param2?', ( req, res ) => {
-	const { system } = req.params
-	switch( system ) {
-		default:
-	}
-	res.status( 404 ).end()
-} )
+router.post( '/v1/mail', ( req, res ) => sendgrid( req, res ) )
 
 router.put( '/v1/:system/:cmd/:param/:id', ( req, res ) => {
 	const { system } = req.params
@@ -31,7 +26,8 @@ router.get( '/v1/:system/:cmd?/:param?/:param2?', async( req, res ) => {
 				const result = await api.json()
 				res.status( 200 ).send( result ).end()
 				return
-			} catch( e ) {
+			}
+			catch( e ) {
 				console.log( e )
 				res.status( 500 ).send( e.message ).end()
 			}

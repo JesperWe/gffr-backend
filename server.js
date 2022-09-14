@@ -58,6 +58,7 @@ const graphileSettings = {
 
 app.set( 'trust proxy', true ) // So we can get client IP
 
+app.use( cors() )
 app.use( "/api", require( './api' ) )
 
 // ------------------------------------------------
@@ -73,13 +74,14 @@ const startupSequence = async() => {
 
 		if( process.env.ENABLE_POSTGRES_MIGRATIONS === '1' ) {
 			await doMigrations()
-			app.use( postgraphile( pgPool, ["public", "bc"], graphileSettings ) )
+			app.use( postgraphile( pgPool, [ "public", "bc" ], graphileSettings ) )
 			console.log( '> Postgraphile started after migrations' )
 		} else {
-			app.use( postgraphile( pgPool, ["public", "bc"], graphileSettings ) )
+			app.use( postgraphile( pgPool, [ "public", "bc" ], graphileSettings ) )
 			console.log( '> Postgraphile started' )
 		}
-	} catch( error ) {
+	}
+	catch( error ) {
 		console.log( 'Database fail:', error.code, error.message )
 		pgClient.end()
 	}
