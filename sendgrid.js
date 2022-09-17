@@ -35,7 +35,7 @@ async function handler( req, res ) {
 		message.to = form.rows[ 0 ].recipients.split( '\n' ).join( ',' )
 		message.text = "Feedback Form Message from fossilfuelregistry.org\n\n!! You CANNOT reply to this message directly !!\n\n\n" + text
 		message.from = "fossilfuelregistry@gmail.com"
-		message.subject = form.rows[ 0 ].subject
+		message.subject = form.rows[ 0 ].subject + ( txt.url ? ` (${ txt.url })` : '' )
 
 		delete message.formId
 
