@@ -18,7 +18,7 @@ app.use( cors() )
 
 const graphileSettings = {
 	watchPg: true,
-	ownerconnectionstring: process.env.POSTGRES_ADMIN_URL,
+	ownerConnectionString: process.env.POSTGRES_ADMIN_URL,
 	appendPlugins: [ PgSimplifyInflectorPlugin, ConnectionFilterPlugin, postGIS.default ],
 	graphiql: process.env.ENABLE_GRAPHIQL !== undefined,
 	enhanceGraphiql: process.env.ENABLE_GRAPHIQL !== undefined,
