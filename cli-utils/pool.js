@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 
 const { Client } = pg
 
-dotenv.config( { path: '../.env' } )
+dotenv.config()
 
 let ssl = false
 
