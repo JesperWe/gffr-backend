@@ -29,7 +29,12 @@ async function handler( req, res ) {
 
 		const txt = JSON.parse( req.body?.text )
 		let text = ''
-		Object.keys( txt ).forEach( t => text += t + ': ' + txt[ t ] + '\n' )
+		Object.keys( txt ).forEach( t => {
+			if( typeof txt[ t ] === 'object' )
+				text += t + ': ' + JSON.stringify( txt[ t ] ) + '\n\n'
+			else
+				text += t + ': ' + txt[ t ] + '\n\n'
+		} )
 
 		const message = {}
 		message.to = form.rows[ 0 ].recipients.split( '\n' ).join( ',' )
