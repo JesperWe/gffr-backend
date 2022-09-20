@@ -85,6 +85,8 @@ const startupSequence = async() => {
 	catch( error ) {
 		console.log( 'Database fail:', error.code, error.message )
 		pgClient.end()
+		// eslint-disable-next-line no-process-exit
+		process.exit( 0 )
 	}
 }
 
