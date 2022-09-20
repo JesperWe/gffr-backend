@@ -24,6 +24,7 @@ const graphileSettings = {
 	enhanceGraphiql: process.env.ENABLE_GRAPHIQL !== undefined,
 	enableCors: true,
 	dynamicJson: true,
+	retryOnInitFail: true,
 	ignoreRBAC: false,
 	showErrorStack: true,
 	extendedErrors: (
