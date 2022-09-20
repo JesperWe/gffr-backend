@@ -37,7 +37,7 @@ async function handler( req, res ) {
 		} )
 
 		const message = {}
-		message.to = form.rows[ 0 ].recipients.split( '\n' ).join( ',' )
+		message.to = form.rows[ 0 ].recipients.split( '\n' )
 		message.text = "Feedback Form Message from fossilfuelregistry.org\n\n!! You CANNOT reply to this message directly !!\n\n\n" + text
 		message.from = "fossilfuelregistry@gmail.com"
 		message.subject = form.rows[ 0 ].subject + ( txt.url ? ` (${ txt.url })` : '' )
